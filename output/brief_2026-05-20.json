@@ -1,0 +1,73 @@
+{
+  "fecha": "2026-05-20",
+  "prompt_version": "v1.2",
+  "ai_model": "Proveedor desconocido",
+  "sesgo_global": "Neutral",
+  "mercado_lider": "Mixto",
+  "activos": {
+    "BTC": {
+      "sesgo": "Neutral",
+      "precio_referencia": 77175.8,
+      "soporte": 76500,
+      "resistencia": 78500,
+      "invalidacion": 76000,
+      "setup": "pullback"
+    },
+    "ETH": {
+      "sesgo": "Bajista",
+      "precio_referencia": 2126.19,
+      "soporte": 2100,
+      "resistencia": 2200,
+      "invalidacion": 2050,
+      "setup": "breakout"
+    },
+    "SOL": {
+      "sesgo": "Bajista",
+      "precio_referencia": 84.77,
+      "soporte": 83,
+      "resistencia": 87,
+      "invalidacion": 82,
+      "setup": "mean reversion"
+    },
+    "SP500": {
+      "sesgo": "Alcista",
+      "precio_referencia": 7376.5,
+      "soporte": 7300,
+      "resistencia": 7400,
+      "invalidacion": 7250,
+      "setup": "pullback"
+    },
+    "NASDAQ": {
+      "sesgo": "Alcista",
+      "precio_referencia": 28960.25,
+      "soporte": 28500,
+      "resistencia": 29500,
+      "invalidacion": 28000,
+      "setup": "continuacion"
+    },
+    "GOLD": {
+      "sesgo": "Neutral",
+      "precio_referencia": 4473.8999,
+      "soporte": 4400,
+      "resistencia": 4500,
+      "invalidacion": 4350,
+      "setup": "none"
+    },
+    "SILVER": {
+      "sesgo": "Neutral",
+      "precio_referencia": 74.59,
+      "soporte": 73,
+      "resistencia": 75,
+      "invalidacion": 72,
+      "setup": "none"
+    },
+    "OIL": {
+      "sesgo": "Alcista",
+      "precio_referencia": 103.83,
+      "soporte": 100,
+      "resistencia": 105,
+      "invalidacion": 98,
+      "setup": "continuacion"
+    }
+  }
+}

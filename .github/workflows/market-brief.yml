@@ -1,0 +1,98 @@
+name: Market Brief
+
+on:
+  schedule:
+    # GitHub cron es UTC. El guard valida cada zona con su DST real y corre
+    # solo si estamos ~30 min antes de la apertura de alguna sesion.
+    # Nueva York 09:00 ET  -> 13:00 UTC (EDT) / 14:00 UTC (EST)
+    - cron: "0 13 * * 1-5"
+    - cron: "0 14 * * 1-5"
+    # Londres 07:30 UK     -> 06:30 UTC (BST) / 07:30 UTC (GMT)
+    - cron: "30 6 * * 1-5"
+    - cron: "30 7 * * 1-5"
+    # Tokio 08:30 JST (sin DST) -> 23:30 UTC del dia anterior (UTC Dom-Jue)
+    - cron: "30 23 * * 0-4"
+  workflow_dispatch:        # disparo manual (ignora el guard para poder probar)
+
+concurrency:
+  group: market-brief
+  cancel-in-progress: false
+
+permissions:
+  contents: write           # para commitear el logbook de vuelta
+
+jobs:
+  brief:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # Guard de sesiones: corre si en alguna zona estamos en la ventana
+      # de ~30 min antes de su apertura. En workflow_dispatch corre siempre.
+      - name: Check session window
+        id: guard
+        run: |
+          python - <<'PY'
+          import os, datetime
+          from zoneinfo import ZoneInfo
+
+          # (nombre, zona, hora_target, minuto_target) = 30 min antes de la apertura
+          SESSIONS = [
+              ("NY",     "America/New_York", 9, 0),
+              ("London", "Europe/London",    7, 30),
+              ("Tokyo",  "Asia/Tokyo",       8, 30),
+          ]
+          WINDOW_BEFORE = 10   # min antes del target
+          WINDOW_AFTER  = 35   # min despues (margen por retraso del cron de GitHub)
+
+          event = os.environ.get("GITHUB_EVENT_NAME", "")
+          matched = []
+          for name, tz, h, m in SESSIONS:
+              now = datetime.datetime.now(ZoneInfo(tz))
+              if now.weekday() >= 5:        # 5=sab, 6=dom
+                  print(f"{name}: {now:%Y-%m-%d %H:%M %Z} (fin de semana, skip)")
+                  continue
+              target = now.replace(hour=h, minute=m, second=0, microsecond=0)
+              delta = (now - target).total_seconds() / 60
+              hit = -WINDOW_BEFORE <= delta <= WINDOW_AFTER
+              print(f"{name}: {now:%Y-%m-%d %H:%M %Z} delta={delta:+.0f}min hit={hit}")
+              if hit:
+                  matched.append(f"{name}@{now:%H:%M}")
+
+          run = bool(matched) or event == "workflow_dispatch"
+          print(f"matched={matched} evento={event} -> run={run}")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"run={'true' if run else 'false'}\n")
+          PY
+
+      - name: Generate & deliver brief
+        if: steps.guard.outputs.run == 'true'
+        env:
+          AI_MODEL:            gemini
+          GEMINI_API_KEY:      ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY:        ${{ secrets.GROQ_API_KEY }}
+          TELEGRAM_BOT_TOKEN:  ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:    ${{ secrets.TELEGRAM_CHAT_ID }}
+          CMC_API_KEY:         ${{ secrets.CMC_API_KEY }}
+          FMP_API_KEY:         ${{ secrets.FMP_API_KEY }}
+          FRED_API_KEY:        ${{ secrets.FRED_API_KEY }}
+          CRYPTOPANIC_API_KEY: ${{ secrets.CRYPTOPANIC_API_KEY }}
+          FINNHUB_API_KEY:     ${{ secrets.FINNHUB_API_KEY }}
+        run: python brief.py --telegram --no-open
+
+      - name: Commit logbook (calls.jsonl + sidecars)
+        if: steps.guard.outputs.run == 'true'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add output/ 2>/dev/null || true
+          git diff --cached --quiet || git commit -m "brief: $(date -u +%FT%TZ) [skip ci]"
+          git push

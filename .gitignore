@@ -1,0 +1,10 @@
+.env
+venv/
+.cache/
+output/*.html
+logs/
+__pycache__/
+*.pyc
+.vscode/
+.idea/
+.claude/
