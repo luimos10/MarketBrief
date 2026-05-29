@@ -242,10 +242,71 @@ def fetch_crypto_data(symbol_pair: str = "BTC/USDT",
             result["top_trader_long_short_account"] = "N/A"
 
     except Exception as e:
-        logger.error(f"Error en datos crypto {symbol_raw}: {e}")
-        return {"error": str(e)}
+        # Binance bloquea IPs de datacenter (HTTP 451 desde GitHub Actions).
+        # Fallback no geobloqueado para recuperar precio + OHLCV (indicadores/bias).
+        logger.warning(
+            f"[{symbol_raw}] Binance no disponible ({e}); "
+            f"usando fallback data-api.binance.vision (spot)")
+        fb = _fetch_crypto_fallback(symbol_raw)
+        if "error" in fb:
+            logger.error(
+                f"Error en datos crypto {symbol_raw}: fallback falló ({fb['error']})")
+            return {"error": fb["error"]}
+        return fb
 
     return result
+
+
+def _fetch_crypto_fallback(symbol_raw: str) -> dict:
+    """
+    Fallback cuando Binance bloquea la IP (HTTP 451 en runners de datacenter).
+    Usa el mirror público de datos de Binance (data-api.binance.vision, solo
+    spot, sin geobloqueo). Recupera precio + OHLCV para que indicadores y bias
+    se calculen. Los datos de futuros (funding, OI, L/S) quedan como "N/A".
+    """
+    base = "https://data-api.binance.vision"
+    out: dict = {"_fallback_source": "data-api.binance.vision (spot)"}
+    try:
+        t = requests.get(f"{base}/api/v3/ticker/24hr",
+                         params={"symbol": symbol_raw}, timeout=10)
+        if t.status_code != 200:
+            return {"error": f"fallback ticker HTTP {t.status_code}"}
+        td = t.json()
+        out.update({
+            "precio": float(td["lastPrice"]),
+            "high_24h": float(td["highPrice"]),
+            "low_24h": float(td["lowPrice"]),
+            "volumen_24h_usd": float(td["quoteVolume"]),
+            "cambio_24h_pct": float(td["priceChangePercent"]),
+        })
+
+        for tf, full_key, last5_key in (
+            ("4h", "_ohlcv_4h_full", "candles_4h_last5"),
+            ("1d", "_ohlcv_1d_full", "candles_1d_last5"),
+        ):
+            k = requests.get(f"{base}/api/v3/klines",
+                             params={"symbol": symbol_raw, "interval": tf,
+                                     "limit": 200}, timeout=10)
+            if k.status_code != 200:
+                continue
+            # Mismo formato que ccxt OHLCV: [ts, open, high, low, close, volume]
+            ohlcv = [[c[0], float(c[1]), float(c[2]), float(c[3]),
+                      float(c[4]), float(c[5])] for c in k.json()]
+            out[full_key] = ohlcv
+            out[last5_key] = [
+                {"open": c[1], "high": c[2], "low": c[3],
+                 "close": c[4], "volume": c[5]}
+                for c in ohlcv[-5:]
+            ]
+
+        # Datos de futuros no disponibles desde el mirror spot
+        out["funding_rate"] = "N/A"
+        out["open_interest"] = "N/A"
+        out["long_short_ratio"] = "N/A"
+        out["taker_buy_sell_ratio"] = "N/A"
+        return out
+    except Exception as e:
+        return {"error": f"fallback: {e}"}
 
 
 def fetch_all_crypto_data(symbols_map: dict) -> dict:
