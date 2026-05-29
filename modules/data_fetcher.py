@@ -299,14 +299,200 @@ def _fetch_crypto_fallback(symbol_raw: str) -> dict:
                 for c in ohlcv[-5:]
             ]
 
-        # Datos de futuros no disponibles desde el mirror spot
-        out["funding_rate"] = "N/A"
-        out["open_interest"] = "N/A"
-        out["long_short_ratio"] = "N/A"
-        out["taker_buy_sell_ratio"] = "N/A"
+        # Datos de futuros: Binance fapi esta geobloqueado -> usamos OKX.
+        out.update(_fetch_okx_futures(symbol_raw))
+        out.setdefault("taker_buy_sell_ratio", "N/A")
         return out
     except Exception as e:
         return {"error": f"fallback: {e}"}
+
+
+# ═══════════════════════════════════════════════════════
+# OKX — Fuente de futuros cuando Binance geobloquea (HTTP 451)
+# ═══════════════════════════════════════════════════════
+
+OKX_BASE = "https://www.okx.com"
+
+
+def _okx_inst(symbol_raw: str):
+    """BTCUSDT -> ('BTC-USDT-SWAP', 'BTC')."""
+    base = symbol_raw[:-4] if symbol_raw.endswith("USDT") else symbol_raw
+    return f"{base}-USDT-SWAP", base
+
+
+def _fetch_okx_futures(symbol_raw: str) -> dict:
+    """Funding actual + Open Interest + Long/Short ratio desde OKX."""
+    inst, ccy = _okx_inst(symbol_raw)
+    out: dict = {"_futures_source": "okx"}
+
+    try:
+        r = requests.get(f"{OKX_BASE}/api/v5/public/funding-rate",
+                         params={"instId": inst}, timeout=10)
+        d = (r.json().get("data") or [{}])[0]
+        if d.get("fundingRate") not in (None, ""):
+            out["funding_rate"] = float(d["fundingRate"])
+            out["next_funding_time"] = d.get("nextFundingTime", "")
+    except Exception as e:
+        logger.warning(f"[{symbol_raw}] OKX funding: {e}")
+
+    try:
+        r = requests.get(f"{OKX_BASE}/api/v5/public/open-interest",
+                         params={"instType": "SWAP", "instId": inst}, timeout=10)
+        d = (r.json().get("data") or [{}])[0]
+        if d.get("oiCcy"):
+            out["open_interest"] = float(d["oiCcy"])
+            out["open_interest_value"] = (
+                float(d["oiUsd"]) if d.get("oiUsd") else "N/A")
+    except Exception as e:
+        logger.warning(f"[{symbol_raw}] OKX OI: {e}")
+
+    try:
+        r = requests.get(
+            f"{OKX_BASE}/api/v5/rubik/stat/contracts/long-short-account-ratio",
+            params={"ccy": ccy, "period": "1H"}, timeout=10)
+        data = r.json().get("data") or []   # [[ts, ratio], ...] newest-first
+        if data:
+            out["long_short_ratio"] = float(data[0][1])
+            out["long_short_trend_5h"] = [{"ratio": float(x[1])} for x in data[:5]]
+    except Exception as e:
+        logger.warning(f"[{symbol_raw}] OKX L/S: {e}")
+
+    out.setdefault("funding_rate", "N/A")
+    out.setdefault("open_interest", "N/A")
+    out.setdefault("long_short_ratio", "N/A")
+    return out
+
+
+def _okx_funding_history(inst: str, pages: int = 3) -> list:
+    """Histórico de funding (paginado, ~100 por página), newest-first."""
+    url = f"{OKX_BASE}/api/v5/public/funding-rate-history"
+    collected, after = [], None
+    for _ in range(pages):
+        params = {"instId": inst, "limit": 100}
+        if after:
+            params["after"] = after
+        r = requests.get(url, params=params, timeout=10)
+        data = r.json().get("data") or []
+        if not data:
+            break
+        collected.extend(data)
+        after = data[-1]["fundingTime"]
+    return collected
+
+
+def _compute_funding_regime(rates: list, symbol: str) -> dict:
+    """Régimen de funding a partir de tasas ascendentes (oldest→newest)."""
+    if not rates:
+        return {"error": "Sin datos"}
+
+    last_7d = rates[-21:] if len(rates) >= 21 else rates
+    avg_7d = sum(last_7d) / len(last_7d)
+    max_7d = max(last_7d)
+    min_7d = min(last_7d)
+
+    latest = rates[-1]
+    sorted_rates = sorted(rates)
+    rank = sum(1 for r in sorted_rates if r <= latest)
+    percentile = round((rank / len(sorted_rates)) * 100, 1)
+
+    consec = 0
+    sign = 1 if last_7d[-1] > 0 else -1
+    for r in reversed(last_7d):
+        if (r > 0 and sign > 0) or (r < 0 and sign < 0):
+            consec += 1
+        else:
+            break
+
+    if percentile > 90:
+        regimen = "EXTREMO POSITIVO — riesgo long squeeze"
+    elif percentile < 10:
+        regimen = "EXTREMO NEGATIVO — riesgo short squeeze"
+    elif percentile > 75:
+        regimen = "Elevado positivo — posicionamiento alcista"
+    elif percentile < 25:
+        regimen = "Elevado negativo — posicionamiento bajista"
+    else:
+        regimen = "Neutral"
+
+    return {
+        "symbol": symbol,
+        "funding_actual": latest,
+        "funding_actual_pct": round(latest * 100, 4),
+        "promedio_7d_pct": round(avg_7d * 100, 4),
+        "max_7d_pct": round(max_7d * 100, 4),
+        "min_7d_pct": round(min_7d * 100, 4),
+        "percentil_90d": percentile,
+        "dias_consecutivos_mismo_signo": consec // 3,  # 3 events = 1 día
+        "regimen": regimen,
+    }
+
+
+def _fetch_funding_regime_okx(symbol_raw: str) -> dict:
+    inst, _ = _okx_inst(symbol_raw)
+    try:
+        hist = _okx_funding_history(inst, pages=3)             # newest-first
+        rates = [float(e["fundingRate"]) for e in reversed(hist)]  # ascending
+        regime = _compute_funding_regime(rates, symbol_raw)
+        if "error" not in regime:
+            regime["_source"] = "okx"
+        return regime
+    except Exception as e:
+        return {"error": f"OKX funding regime: {e}"}
+
+
+def _liquidation_from_ohlcv(rows: list, symbol: str, hours: int) -> dict:
+    """rows: [[ts_ms, open, high, low, close, volume], ...] (cualquier orden)."""
+    wicks = []
+    for c in rows:
+        open_p, high, low, close, volume = (
+            float(c[1]), float(c[2]), float(c[3]), float(c[4]), float(c[5]))
+        upper_wick = high - max(open_p, close)
+        lower_wick = min(open_p, close) - low
+        total_range = high - low
+        if total_range == 0:
+            continue
+        wicks.append({
+            "timestamp": datetime.fromtimestamp(int(c[0]) / 1000, tz=timezone.utc)
+                                   .strftime("%Y-%m-%d %H:%M UTC"),
+            "high": high, "low": low, "close": close,
+            "upper_wick_score": (upper_wick / total_range) * volume,
+            "lower_wick_score": (lower_wick / total_range) * volume,
+            "upper_wick_pct": round((upper_wick / total_range) * 100, 1),
+            "lower_wick_pct": round((lower_wick / total_range) * 100, 1),
+            "volume": volume,
+        })
+    top_upper = sorted(wicks, key=lambda x: x["upper_wick_score"], reverse=True)[:3]
+    top_lower = sorted(wicks, key=lambda x: x["lower_wick_score"], reverse=True)[:3]
+    return {
+        "symbol": symbol,
+        "lookback_hours": hours,
+        "proxy_metodo": "wicks 1h ponderados por volumen",
+        "top_short_squeeze_zones": [
+            {"precio": round(z["high"], 2), "wick_pct": z["upper_wick_pct"],
+             "timestamp": z["timestamp"]}
+            for z in top_upper if z["upper_wick_pct"] > 30
+        ],
+        "top_long_liquidation_zones": [
+            {"precio": round(z["low"], 2), "wick_pct": z["lower_wick_pct"],
+             "timestamp": z["timestamp"]}
+            for z in top_lower if z["lower_wick_pct"] > 30
+        ],
+    }
+
+
+def _fetch_liquidation_okx(symbol_raw: str, hours: int) -> dict:
+    inst, _ = _okx_inst(symbol_raw)
+    try:
+        r = requests.get(f"{OKX_BASE}/api/v5/market/candles",
+                         params={"instId": inst, "bar": "1H",
+                                 "limit": min(hours + 1, 300)}, timeout=10)
+        data = r.json().get("data") or []   # [ts,o,h,l,c,vol,...] newest-first
+        if not data:
+            return {"error": "OKX sin velas"}
+        rows = [[x[0], x[1], x[2], x[3], x[4], x[5]] for x in data]
+        return _liquidation_from_ohlcv(rows, symbol_raw, hours)
+    except Exception as e:
+        return {"error": f"OKX liquidation: {e}"}
 
 
 def fetch_all_crypto_data(symbols_map: dict) -> dict:
@@ -507,74 +693,20 @@ def fetch_liquidation_zones(symbol: str = "BTCUSDT", hours: int = 24) -> dict:
     Nota: Binance no expone liquidaciones agregadas en REST público
     (sólo WS @forceOrder o /allForceOrders firmado). Este proxy es
     una aproximación honesta basada en estructura de vela.
+    Binance fapi -> si geobloquea (451), fallback a velas de OKX.
     """
     try:
         url = "https://fapi.binance.com/fapi/v1/klines"
         params = {"symbol": symbol, "interval": "1h", "limit": hours + 1}
         resp = requests.get(url, params=params, timeout=10)
-        if resp.status_code != 200:
-            return {"error": f"HTTP {resp.status_code}"}
-
-        candles = resp.json()
-        wicks = []
-        for c in candles:
-            open_p = float(c[1])
-            high = float(c[2])
-            low = float(c[3])
-            close = float(c[4])
-            volume = float(c[5])
-            body = abs(close - open_p)
-            upper_wick = high - max(open_p, close)
-            lower_wick = min(open_p, close) - low
-            total_range = high - low
-            if total_range == 0:
-                continue
-            # Score: cuán dominante es la mecha vs cuerpo, ponderado por volumen
-            upper_score = (upper_wick / total_range) * volume
-            lower_score = (lower_wick / total_range) * volume
-            wicks.append({
-                "timestamp": datetime.fromtimestamp(c[0] / 1000, tz=timezone.utc)
-                                       .strftime("%Y-%m-%d %H:%M UTC"),
-                "high": high,
-                "low": low,
-                "close": close,
-                "upper_wick_score": upper_score,
-                "lower_wick_score": lower_score,
-                "upper_wick_pct": round((upper_wick / total_range) * 100, 1),
-                "lower_wick_pct": round((lower_wick / total_range) * 100, 1),
-                "volume": volume,
-            })
-
-        # Top 3 wicks por lado
-        top_upper = sorted(wicks, key=lambda x: x["upper_wick_score"],
-                           reverse=True)[:3]
-        top_lower = sorted(wicks, key=lambda x: x["lower_wick_score"],
-                           reverse=True)[:3]
-
-        return {
-            "symbol": symbol,
-            "lookback_hours": hours,
-            "proxy_metodo": "wicks 1h ponderados por volumen",
-            "top_short_squeeze_zones": [
-                {
-                    "precio": round(z["high"], 2),
-                    "wick_pct": z["upper_wick_pct"],
-                    "timestamp": z["timestamp"],
-                }
-                for z in top_upper if z["upper_wick_pct"] > 30
-            ],
-            "top_long_liquidation_zones": [
-                {
-                    "precio": round(z["low"], 2),
-                    "wick_pct": z["lower_wick_pct"],
-                    "timestamp": z["timestamp"],
-                }
-                for z in top_lower if z["lower_wick_pct"] > 30
-            ],
-        }
+        if resp.status_code == 200:
+            rows = [[c[0], c[1], c[2], c[3], c[4], c[5]] for c in resp.json()]
+            return _liquidation_from_ohlcv(rows, symbol, hours)
+        logger.warning(
+            f"  Liquidation Binance HTTP {resp.status_code}; usando OKX")
     except Exception as e:
-        logger.warning(f"  Liquidation proxy excepción: {e}")
-        return {"error": str(e)}
+        logger.warning(f"  Liquidation Binance excepción ({e}); usando OKX")
+    return _fetch_liquidation_okx(symbol, hours)
 
 
 @cached("funding_history")
@@ -582,67 +714,24 @@ def fetch_funding_regime(symbol: str = "BTCUSDT") -> dict:
     """
     Régimen de funding rate: histórico 7d y 90d para detectar
     posicionamiento extremo (riesgo de squeeze).
+    Binance fapi -> si geobloquea (451), fallback a OKX.
     """
     try:
         url = "https://fapi.binance.com/fapi/v1/fundingRate"
         # 90 días = ~270 funding events (cada 8h)
         resp = requests.get(
             url, params={"symbol": symbol, "limit": 270}, timeout=10)
-        if resp.status_code != 200:
-            return {"error": f"HTTP {resp.status_code}"}
-
-        events = resp.json()
-        rates = [float(e["fundingRate"]) for e in events]
-        if not rates:
-            return {"error": "Sin datos"}
-
-        # Últimos 21 eventos = 7 días
-        last_7d = rates[-21:] if len(rates) >= 21 else rates
-        avg_7d = sum(last_7d) / len(last_7d)
-        max_7d = max(last_7d)
-        min_7d = min(last_7d)
-
-        # Percentil del último vs 90d
-        latest = rates[-1]
-        sorted_rates = sorted(rates)
-        rank = sum(1 for r in sorted_rates if r <= latest)
-        percentile = round((rank / len(sorted_rates)) * 100, 1)
-
-        # Días consecutivos de funding positivo o negativo
-        consec = 0
-        sign = 1 if last_7d[-1] > 0 else -1
-        for r in reversed(last_7d):
-            if (r > 0 and sign > 0) or (r < 0 and sign < 0):
-                consec += 1
-            else:
-                break
-
-        # Interpretación
-        if percentile > 90:
-            regimen = "EXTREMO POSITIVO — riesgo long squeeze"
-        elif percentile < 10:
-            regimen = "EXTREMO NEGATIVO — riesgo short squeeze"
-        elif percentile > 75:
-            regimen = "Elevado positivo — posicionamiento alcista"
-        elif percentile < 25:
-            regimen = "Elevado negativo — posicionamiento bajista"
+        if resp.status_code == 200:
+            rates = [float(e["fundingRate"]) for e in resp.json()]
+            regime = _compute_funding_regime(rates, symbol)
+            if "error" not in regime:
+                return regime
         else:
-            regimen = "Neutral"
-
-        return {
-            "symbol": symbol,
-            "funding_actual": latest,
-            "funding_actual_pct": round(latest * 100, 4),
-            "promedio_7d_pct": round(avg_7d * 100, 4),
-            "max_7d_pct": round(max_7d * 100, 4),
-            "min_7d_pct": round(min_7d * 100, 4),
-            "percentil_90d": percentile,
-            "dias_consecutivos_mismo_signo": consec // 3,  # 3 events = 1 día
-            "regimen": regimen,
-        }
+            logger.warning(
+                f"  Funding Binance HTTP {resp.status_code}; usando OKX")
     except Exception as e:
-        logger.warning(f"  Funding regime excepción: {e}")
-        return {"error": str(e)}
+        logger.warning(f"  Funding Binance excepción ({e}); usando OKX")
+    return _fetch_funding_regime_okx(symbol)
 
 
 @cached("macro_calendar")
