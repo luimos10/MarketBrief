@@ -6,6 +6,10 @@ genera un informe con LLM (Gemini o Groq) y entrega Markdown + HTML + Telegram.
 Además, persiste cada call en un logbook estructurado para medir hit rate
 real en el tiempo.
 
+**Corre solo en la nube con GitHub Actions** — de lunes a viernes, 30 minutos
+antes de la apertura de Tokio, Londres y Nueva York (3 veces al día), sin
+depender de tu PC. Ver [Ejecución automática](#ejecución-automática-en-la-nube-github-actions).
+
 ---
 
 ## Tabla de contenidos
@@ -22,7 +26,7 @@ real en el tiempo.
 10. [Logbook y evaluación de calls](#logbook-y-evaluación-de-calls)
 11. [A/B testing de prompts](#ab-testing-de-prompts)
 12. [Caché y rendimiento](#caché-y-rendimiento)
-13. [Ejecución automática (Windows Task Scheduler)](#ejecución-automática-windows-task-scheduler)
+13. [Ejecución automática en la nube (GitHub Actions)](#ejecución-automática-en-la-nube-github-actions)
 14. [Troubleshooting](#troubleshooting)
 15. [Roadmap](#roadmap)
 
@@ -128,6 +132,12 @@ Cache layer (diskcache): TTL por categoría
 
 Todas las fuentes corren en paralelo con `ThreadPoolExecutor(max_workers=8)`.
 Tiempo total típico: **10-15s en cold cache, <1s en warm cache.**
+
+> **Fallbacks en la nube (geobloqueo de Binance).** Las IPs de datacenter de
+> GitHub Actions reciben `HTTP 451` de Binance. El proyecto lo resuelve solo:
+> precio + OHLCV caen a `data-api.binance.vision` (mirror spot, sin geobloqueo)
+> y los datos de futuros (funding, OI, L/S, liquidaciones) a **OKX**. En local
+> sigue usando Binance directamente. Transparente, sin configuración.
 
 ---
 
@@ -479,20 +489,58 @@ Remove-Item -Recurse -Force .\.cache
 
 ---
 
-## Ejecución automática (Windows Task Scheduler)
+## Ejecución automática en la nube (GitHub Actions)
+
+El brief corre solo en GitHub Actions — **no necesitas la PC encendida**.
+Workflow: `.github/workflows/market-brief.yml`.
+
+### Programación
+
+Se ejecuta **de lunes a viernes, 30 minutos antes de la apertura de cada
+sesión**, con manejo automático de horario de verano (DST) por zona vía
+`zoneinfo`:
+
+| Sesión | Apertura | Brief (30 min antes) | Zona |
+|--------|----------|----------------------|------|
+| Asia (Tokio) | 9:00 JST | **8:30 JST** | Asia/Tokyo (sin DST) |
+| Londres | 8:00 UK | **7:30 UK** | Europe/London (DST) |
+| Nueva York | 9:30 ET | **9:00 ET** | America/New_York (DST) |
+
+Hay 5 crons en UTC (dos para NY y dos para Londres que cubren verano/invierno,
+uno para Tokio). Un *guard* en Python evalúa las tres zonas en cada disparo y
+solo ejecuta si está dentro de la ventana de alguna; los demás abortan en
+segundos sin gastar API. El disparo manual (`workflow_dispatch`) ignora el guard
+para poder probar a cualquier hora.
+
+### Secrets
+
+En GitHub → **Settings → Secrets and variables → Actions**:
+
+| Secret | Requerido |
+|--------|-----------|
+| `GEMINI_API_KEY` | Sí (modelo por defecto) |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | Sí (entrega) |
+| `CMC_API_KEY`, `FRED_API_KEY` | Recomendados |
+| `FMP_API_KEY`, `CRYPTOPANIC_API_KEY`, `FINNHUB_API_KEY`, `GROQ_API_KEY` | Opcionales |
+
+`config.py` lee las variables del entorno, así que no hace falta `.env` en la nube.
+
+### Continuidad del logbook
+
+Como el runner es efímero, cada corrida hace `commit` de `output/`
+(`calls.jsonl` + sidecars JSON) de vuelta al repo, para que `evaluate_calls.py`
+acumule el historial entre ejecuciones. La entrega usa
+`python brief.py --telegram --no-open`.
+
+### Ejecución local (opcional, Windows Task Scheduler)
+
+Si prefieres correrlo en tu máquina en vez de (o además de) la nube:
 
 ```powershell
 # Instalar tarea diaria a 09:05 (default)
-powershell -ExecutionPolicy Bypass -File .\install_scheduled_task.ps1
-
-# Variantes
 powershell -ExecutionPolicy Bypass -File .\install_scheduled_task.ps1 -Telegram
-powershell -ExecutionPolicy Bypass -File .\install_scheduled_task.ps1 -Both
-powershell -ExecutionPolicy Bypass -File .\install_scheduled_task.ps1 -Groq
-powershell -ExecutionPolicy Bypass -File .\install_scheduled_task.ps1 -NoOpen
 
-# Cambiar nombre u hora
-powershell -ExecutionPolicy Bypass -File .\install_scheduled_task.ps1 -TaskName "MarketBrief 9AM" -RunAt "09:05"
+# Variantes: -Both  -Groq  -NoOpen  |  Cambiar nombre/hora: -TaskName "..." -RunAt "09:05"
 
 # Eliminar
 powershell -ExecutionPolicy Bypass -File .\remove_scheduled_task.ps1
@@ -545,6 +593,14 @@ La CFTC publica viernes (data del martes). Si corres en lunes-jueves, los datos
 son de la semana anterior. Algunos contratos (E-MINI vs MICRO) son filtrados
 explícitamente en `modules/cot_report.py`.
 
+### Crypto sin precio/indicadores en la nube (Binance `451`)
+
+GitHub Actions corre en IPs de datacenter que Binance bloquea
+(`HTTP 451 restricted location`). Está resuelto automáticamente: precio + OHLCV
+caen a `data-api.binance.vision` (mirror spot) y los datos de futuros (funding,
+OI, L/S, liquidaciones) a **OKX**. En local sigue usando Binance. No requiere
+configuración; en el log verás `usando fallback ...` cuando aplique.
+
 ### Limpiar cache local
 
 ```powershell
@@ -561,6 +617,7 @@ Remove-Item -Recurse -Force .\.cache
 | Hecho | Fase 2: indicadores pandas, bias engine numérico, JSON estructurado, logbook, `evaluate_calls.py` |
 | Hecho | Fase 3: options flow Deribit, news sentiment, COT report semanal, A/B prompt testing |
 | Hecho | Fase 4: tiers de activos (5 principales fijos + 3 macro + 4 watchlist), FRED (curva + liquidez), VIX term structure, sector rotation, frontend dark minimalista |
+| Hecho | Fase 5: despliegue en la nube (GitHub Actions) — 3 corridas/día (Tokio/Londres/NY) con guard DST + fallbacks de geobloqueo (spot mirror + OKX) |
 | Pendiente | Alertas intradía (re-runs cada 30 min con bias score delta > threshold) |
 | Pendiente | Dashboard Streamlit para visualizar hit rate por activo y versión |
 
@@ -572,9 +629,14 @@ Remove-Item -Recurse -Force .\.cache
 - Si `MAX_TOKENS` excede el techo de Groq, se reduce automáticamente.
 - El conversor Markdown→HTML es propio (sin dependencias). Soporta lo esencial
   (headers, bold, italic, listas, tablas, code blocks, blockquotes).
-- Las liquidaciones son **proxy** (wicks 1h) — Binance no expone liquidaciones
-  agregadas vía REST público. Para data real se requeriría suscripción a
-  WebSocket `@forceOrder` o un proveedor pago tipo Coinglass.
+- Las liquidaciones son **proxy** (wicks 1h) — ningún exchange expone
+  liquidaciones agregadas vía REST público gratuito. En local usa velas de
+  Binance; en la nube, de OKX. Para data real se requeriría WebSocket
+  `@forceOrder` o un proveedor pago tipo Coinglass.
+- En la nube los datos de derivados (funding/OI/L-S) provienen de **OKX**, porque
+  Binance geobloquea las IPs de GitHub Actions. Son ≈ equivalentes en BTC/ETH/SOL;
+  el L/S de OKX es un ratio de cuentas agregado, sin el desglose top-trader
+  account/position que da Binance (el bias engine no lo usa).
 - COT se publica solo viernes. En lunes-jueves los datos son de la semana anterior.
 - News sentiment requiere keys de CryptoPanic y Finnhub para habilitarse;
   sin ellas, esa sección queda vacía y el LLM cae al web grounding de Gemini.
