@@ -1,18 +1,13 @@
 name: Market Brief
 
 on:
-  schedule:
-    # GitHub cron es UTC. El guard valida cada zona con su DST real y corre
-    # solo si estamos ~30 min antes de la apertura de alguna sesion.
-    # Nueva York 09:00 ET  -> 13:00 UTC (EDT) / 14:00 UTC (EST)
-    - cron: "0 13 * * 1-5"
-    - cron: "0 14 * * 1-5"
-    # Londres 07:30 UK     -> 06:30 UTC (BST) / 07:30 UTC (GMT)
-    - cron: "30 6 * * 1-5"
-    - cron: "30 7 * * 1-5"
-    # Tokio 08:30 JST (sin DST) -> 23:30 UTC del dia anterior (UTC Dom-Jue)
-    - cron: "30 23 * * 0-4"
-  workflow_dispatch:        # disparo manual (ignora el guard para poder probar)
+  # El timing lo controla un scheduler externo (cron-job.org) que dispara este
+  # workflow via la API de GitHub (workflow_dispatch) a la hora exacta, 30 min
+  # antes de la apertura de cada bolsa y en la zona horaria de cada una (asi el
+  # DST se ajusta solo). Ya no usamos el cron de GitHub: es poco puntual y
+  # retrasaba/descartaba los disparos. workflow_dispatch tambien permite probar
+  # a mano desde la UI de GitHub.
+  workflow_dispatch:
 
 concurrency:
   group: market-brief
@@ -35,46 +30,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # Guard de sesiones: corre si en alguna zona estamos en la ventana
-      # de ~30 min antes de su apertura. En workflow_dispatch corre siempre.
-      - name: Check session window
-        id: guard
-        run: |
-          python - <<'PY'
-          import os, datetime
-          from zoneinfo import ZoneInfo
-
-          # (nombre, zona, hora_target, minuto_target) = 30 min antes de la apertura
-          SESSIONS = [
-              ("NY",     "America/New_York", 9, 0),
-              ("London", "Europe/London",    7, 30),
-              ("Tokyo",  "Asia/Tokyo",       8, 30),
-          ]
-          WINDOW_BEFORE = 10   # min antes del target
-          WINDOW_AFTER  = 35   # min despues (margen por retraso del cron de GitHub)
-
-          event = os.environ.get("GITHUB_EVENT_NAME", "")
-          matched = []
-          for name, tz, h, m in SESSIONS:
-              now = datetime.datetime.now(ZoneInfo(tz))
-              if now.weekday() >= 5:        # 5=sab, 6=dom
-                  print(f"{name}: {now:%Y-%m-%d %H:%M %Z} (fin de semana, skip)")
-                  continue
-              target = now.replace(hour=h, minute=m, second=0, microsecond=0)
-              delta = (now - target).total_seconds() / 60
-              hit = -WINDOW_BEFORE <= delta <= WINDOW_AFTER
-              print(f"{name}: {now:%Y-%m-%d %H:%M %Z} delta={delta:+.0f}min hit={hit}")
-              if hit:
-                  matched.append(f"{name}@{now:%H:%M}")
-
-          run = bool(matched) or event == "workflow_dispatch"
-          print(f"matched={matched} evento={event} -> run={run}")
-          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-              f.write(f"run={'true' if run else 'false'}\n")
-          PY
-
       - name: Generate & deliver brief
-        if: steps.guard.outputs.run == 'true'
         env:
           AI_MODEL:            gemini
           GEMINI_API_KEY:      ${{ secrets.GEMINI_API_KEY }}
@@ -89,10 +45,23 @@ jobs:
         run: python brief.py --telegram --no-open
 
       - name: Commit logbook (calls.jsonl + sidecars)
-        if: steps.guard.outputs.run == 'true'
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add output/ 2>/dev/null || true
           git diff --cached --quiet || git commit -m "brief: $(date -u +%FT%TZ) [skip ci]"
           git push
+
+      # Aviso si algo falla (Gemini 503 persistente, geobloqueo, etc.). Sin esto,
+      # un fallo solo se ve en la pestaña Actions y pasa desapercibido.
+      - name: Notify on failure
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          curl -s -X POST \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            --data-urlencode "text=⚠️ Market Brief falló (run ${GITHUB_RUN_ID}). Revisa la pestaña Actions: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            > /dev/null || true

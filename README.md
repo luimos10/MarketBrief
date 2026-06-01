@@ -8,7 +8,9 @@ real en el tiempo.
 
 **Corre solo en la nube con GitHub Actions** — de lunes a viernes, 30 minutos
 antes de la apertura de Tokio, Londres y Nueva York (3 veces al día), sin
-depender de tu PC. Ver [Ejecución automática](#ejecución-automática-en-la-nube-github-actions).
+depender de tu PC. El disparo a la hora exacta lo hace un scheduler externo
+(cron-job.org) vía la API de GitHub, así que no dependemos del cron de Actions.
+Ver [Ejecución automática](#ejecución-automática-en-la-nube-github-actions).
 
 ---
 
@@ -497,20 +499,33 @@ Workflow: `.github/workflows/market-brief.yml`.
 ### Programación
 
 Se ejecuta **de lunes a viernes, 30 minutos antes de la apertura de cada
-sesión**, con manejo automático de horario de verano (DST) por zona vía
-`zoneinfo`:
+sesión**:
 
 | Sesión | Apertura | Brief (30 min antes) | Zona |
 |--------|----------|----------------------|------|
-| Asia (Tokio) | 9:00 JST | **8:30 JST** | Asia/Tokyo (sin DST) |
-| Londres | 8:00 UK | **7:30 UK** | Europe/London (DST) |
-| Nueva York | 9:30 ET | **9:00 ET** | America/New_York (DST) |
+| Asia (Tokio) | 9:00 JST | **8:30 JST** | Asia/Tokyo |
+| Londres | 8:00 UK | **7:30 UK** | Europe/London |
+| Nueva York | 9:30 ET | **9:00 ET** | America/New_York |
 
-Hay 5 crons en UTC (dos para NY y dos para Londres que cubren verano/invierno,
-uno para Tokio). Un *guard* en Python evalúa las tres zonas en cada disparo y
-solo ejecuta si está dentro de la ventana de alguna; los demás abortan en
-segundos sin gastar API. El disparo manual (`workflow_dispatch`) ignora el guard
-para poder probar a cualquier hora.
+El **timing lo controla un scheduler externo (cron-job.org)**, no el cron de
+GitHub Actions (que es poco puntual y retrasaba/descartaba disparos). Hay 3 jobs
+en cron-job.org, uno por sesión, cada uno programado en la **zona horaria de su
+bolsa** — así el horario de verano (DST) se ajusta solo, sin pares de cron ni
+*guard*. Cada job hace un `POST` a la API de GitHub para disparar el workflow
+(`workflow_dispatch`):
+
+```
+POST https://api.github.com/repos/<owner>/<repo>/actions/workflows/market-brief.yml/dispatches
+Headers: Authorization: Bearer <PAT fine-grained, Actions: write>
+         Accept: application/vnd.github+json
+         X-GitHub-Api-Version: 2022-11-28
+Body:    {"ref":"main"}
+```
+
+El workflow ya no tiene `schedule:` ni guard: solo `workflow_dispatch`, así que
+cada disparo genera y entrega un brief. Si algo falla (Gemini 503 persistente,
+geobloqueo, etc.), un step `if: failure()` avisa por Telegram con el enlace al
+run. También puedes dispararlo a mano desde la pestaña **Actions** de GitHub.
 
 ### Secrets
 
@@ -617,7 +632,7 @@ Remove-Item -Recurse -Force .\.cache
 | Hecho | Fase 2: indicadores pandas, bias engine numérico, JSON estructurado, logbook, `evaluate_calls.py` |
 | Hecho | Fase 3: options flow Deribit, news sentiment, COT report semanal, A/B prompt testing |
 | Hecho | Fase 4: tiers de activos (5 principales fijos + 3 macro + 4 watchlist), FRED (curva + liquidez), VIX term structure, sector rotation, frontend dark minimalista |
-| Hecho | Fase 5: despliegue en la nube (GitHub Actions) — 3 corridas/día (Tokio/Londres/NY) con guard DST + fallbacks de geobloqueo (spot mirror + OKX) |
+| Hecho | Fase 5: despliegue en la nube (GitHub Actions) — 3 corridas/día (Tokio/Londres/NY) disparadas por cron-job.org (DST por zona horaria) + fallbacks de geobloqueo (spot mirror + OKX) |
 | Pendiente | Alertas intradía (re-runs cada 30 min con bias score delta > threshold) |
 | Pendiente | Dashboard Streamlit para visualizar hit rate por activo y versión |
 
