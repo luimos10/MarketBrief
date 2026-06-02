@@ -181,7 +181,11 @@ Tiempo total típico: **10-15s en cold cache, <1s en warm cache.**
 
 6. **Entrega** (`modules/delivery.py`)
    - Decora el brief: extrae sesgo, mercado líder, versión prompt, IA.
-   - Reescribe el encabezado en formato canónico.
+   - Reescribe el encabezado en formato canónico. El título muestra el modelo de
+     IA que **realmente** generó el análisis (refleja el fallback si ocurrió).
+   - El subtítulo del header HTML muestra la **hora local de cada bolsa**
+     (Tokio · Londres · Nueva York) y resalta la **próxima apertura** —en vez de
+     un texto fijo— calculado con `zoneinfo` (`build_header_subtitle`).
    - Genera HTML (parser propio sin dependencias).
    - Envía documento HTML por Telegram si corresponde.
    - Guarda siempre Markdown como respaldo timestamped.
@@ -273,13 +277,19 @@ Todas configuradas en `.env`. Las marcadas como `(opcional)` se omiten gracefull
 
 | Variable | Default | Descripción |
 |----------|---------|-------------|
-| `AI_MODEL` | `gemini` | Proveedor principal: `gemini` o `groq` |
+| `AI_MODEL` | `gemini` | Proveedor **primario**: `gemini` o `groq` |
 | `GEMINI_API_KEY` | — | Required si AI_MODEL=gemini |
 | `GEMINI_MODEL` | `gemini-2.5-flash-lite` | |
-| `GROQ_API_KEY` | — | Required si AI_MODEL=groq |
+| `GROQ_API_KEY` | — | Required si AI_MODEL=groq; también habilita el fallback |
 | `GROQ_MODEL` | `meta-llama/llama-4-scout-17b-16e-instruct` | |
 | `MAX_TOKENS` | `12000` | Tokens de salida máximos |
 | `GROQ_MAX_TOKENS` | `8192` | Techo Groq (clamp automático) |
+
+> **Fallback automático entre proveedores.** Si el proveedor primario falla tras
+> sus reintentos, el brief cae al otro proveedor de forma automática **si su API
+> key está configurada** (ej. `gemini` → `groq`). El título y el footer del informe
+> muestran el modelo que realmente lo generó. Solo si **todos** fallan se aborta la
+> corrida. Lógica en `generate_brief_with_fallback` (`modules/brief_generator.py`).
 
 ### Datos de mercado
 
