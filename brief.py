@@ -163,50 +163,42 @@ def main():
             f"✗ AI_MODEL inválido: {ai_model}. Usa 'gemini' o 'groq'.")
         sys.exit(1)
 
-    # ── PASO 3: Generar brief con el modelo elegido ──
+    # ── PASO 3: Generar brief con fallback entre proveedores ──
     logger.info("")
-    if ai_model == "groq":
-        groq_max_tokens = min(config.MAX_TOKENS, config.GROQ_MAX_TOKENS)
-        if groq_max_tokens < config.MAX_TOKENS:
-            logger.info(
-                f"Ajustando max_tokens para Groq: {config.MAX_TOKENS} -> {groq_max_tokens}"
-            )
-        logger.info(
-            f"━━━ PASO 3/4: Generando brief con {config.GROQ_MODEL} (Groq) ━━━")
-        from modules.brief_generator import generate_brief_groq
-        if not config.GROQ_API_KEY:
-            logger.error(
-                "✗ GROQ_API_KEY no configurada. Revisa tu archivo .env")
-            sys.exit(1)
-        brief_text = generate_brief_groq(
-            system_prompt=system_prompt,
-            user_prompt=full_prompt,
-            api_key=config.GROQ_API_KEY,
-            model=config.GROQ_MODEL,
-            max_tokens=groq_max_tokens,
-        )
-    else:
-        logger.info(
-            f"━━━ PASO 3/4: Generando brief con {config.GEMINI_MODEL} (Gemini) ━━━")
-        from modules.brief_generator import generate_brief
-        if not config.GEMINI_API_KEY:
-            logger.error(
-                "✗ GEMINI_API_KEY no configurada. Revisa tu archivo .env")
-            sys.exit(1)
-        brief_text = generate_brief(
-            system_prompt=system_prompt,
-            user_prompt=full_prompt,
-            api_key=config.GEMINI_API_KEY,
-            model=config.GEMINI_MODEL,
-            max_tokens=config.MAX_TOKENS,
-            enable_search=not args.no_search,
-        )
+    groq_max_tokens = min(config.MAX_TOKENS, config.GROQ_MAX_TOKENS)
+    primary_label = (config.GROQ_MODEL if ai_model == "groq"
+                     else config.GEMINI_MODEL)
+    logger.info(
+        f"━━━ PASO 3/4: Generando brief (primario: {ai_model} / "
+        f"{primary_label}, con fallback) ━━━")
 
-    if brief_text.startswith("ERROR"):
-        logger.error(f"✗ {brief_text}")
+    if not config.GEMINI_API_KEY and not config.GROQ_API_KEY:
+        logger.error(
+            "✗ No hay ninguna API key de IA configurada (GEMINI_API_KEY / "
+            "GROQ_API_KEY). Revisa tu .env o los secrets.")
         sys.exit(1)
 
-    logger.info(f"Brief generado ({len(brief_text)} caracteres)")
+    from modules.brief_generator import generate_brief_with_fallback
+    brief_text, used_provider, used_model = generate_brief_with_fallback(
+        system_prompt=system_prompt,
+        user_prompt=full_prompt,
+        primary_provider=ai_model,
+        gemini_api_key=config.GEMINI_API_KEY or "",
+        gemini_model=config.GEMINI_MODEL,
+        gemini_max_tokens=config.MAX_TOKENS,
+        enable_search=not args.no_search,
+        groq_api_key=config.GROQ_API_KEY or "",
+        groq_model=config.GROQ_MODEL,
+        groq_max_tokens=groq_max_tokens,
+    )
+
+    if not brief_text:
+        logger.error("✗ Ningún proveedor de IA pudo generar el brief.")
+        sys.exit(1)
+
+    logger.info(
+        f"Brief generado ({len(brief_text)} caracteres) "
+        f"con {used_provider} ({used_model})")
 
     # ── PASO 3.5: Extraer JSON estructurado + logbook (con fallback sintético) ──
     from modules.logbook import (
@@ -215,8 +207,7 @@ def main():
         build_synthetic_structured,
     )
 
-    ai_label = (f"{ai_model}:{config.GROQ_MODEL}" if ai_model == "groq"
-                else f"{ai_model}:{config.GEMINI_MODEL}")
+    ai_label = f"{used_provider}:{used_model}"
     structured = extract_json_block(brief_text)
     is_synthetic = False
 
@@ -231,7 +222,7 @@ def main():
         structured = build_synthetic_structured(
             market_data,
             prompt_version=getattr(config, "PROMPT_VERSION", "unknown"),
-            ai_model=ai_model,
+            ai_model=used_provider,
         )
         is_synthetic = True
 
@@ -264,8 +255,8 @@ def main():
         "telegram_token": config.TELEGRAM_BOT_TOKEN,
         "telegram_chat_id": config.TELEGRAM_CHAT_ID,
         "open_browser": not args.no_open,
-        "ai_provider": ai_model,
-        "ai_model": config.GROQ_MODEL if ai_model == "groq" else config.GEMINI_MODEL,
+        "ai_provider": used_provider,
+        "ai_model": used_model,
         "prompt_version": getattr(config, "PROMPT_VERSION", ""),
     }
 

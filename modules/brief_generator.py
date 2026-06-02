@@ -198,3 +198,77 @@ def generate_brief_groq(
 
             logger.error(f"Error llamando a Groq: {e}")
             return f"ERROR: {e}"
+
+
+# ═══════════════════════════════════════════════════════
+# FALLBACK ENTRE PROVEEDORES (Gemini → Groq)
+# ═══════════════════════════════════════════════════════
+
+
+def generate_brief_with_fallback(
+    system_prompt: str,
+    user_prompt: str,
+    *,
+    primary_provider: str = "gemini",
+    gemini_api_key: str = "",
+    gemini_model: str = "gemini-2.5-flash",
+    gemini_max_tokens: int = 16000,
+    enable_search: bool = True,
+    groq_api_key: str = "",
+    groq_model: str = "llama3-70b-8192",
+    groq_max_tokens: int = 8192,
+) -> tuple[str | None, str | None, str | None]:
+    """
+    Genera el brief con una cadena de fallback entre proveedores.
+
+    Intenta primero el proveedor elegido y, si falla (tras sus reintentos
+    internos), cae al otro proveedor SI su API key está disponible. Así un
+    fallo de Gemini (503 persistente, geobloqueo, cuota) no tumba el envío.
+
+    Returns:
+        (brief_text, provider_usado, modelo_usado) si algún proveedor responde;
+        (None, None, None) si todos fallan.
+    """
+    # Cadena de candidatos: primario primero, luego el otro si tiene key.
+    gemini_candidate = ("gemini", gemini_model)
+    groq_candidate = ("groq", groq_model)
+    if primary_provider == "groq":
+        candidates = [groq_candidate, gemini_candidate]
+    else:
+        candidates = [gemini_candidate, groq_candidate]
+
+    for provider, model in candidates:
+        if provider == "gemini":
+            if not gemini_api_key:
+                continue
+            logger.info(f"→ Intentando con Gemini ({model})...")
+            text = generate_brief(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                api_key=gemini_api_key,
+                model=model,
+                max_tokens=gemini_max_tokens,
+                enable_search=enable_search,
+            )
+        else:
+            if not groq_api_key:
+                continue
+            logger.info(f"→ Intentando con Groq ({model})...")
+            text = generate_brief_groq(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                api_key=groq_api_key,
+                model=model,
+                max_tokens=groq_max_tokens,
+            )
+
+        if text and not text.startswith("ERROR"):
+            logger.info(f"✓ Brief generado con {provider} ({model})")
+            return text, provider, model
+
+        logger.warning(
+            f"✗ {provider} ({model}) falló: {text}. Probando siguiente proveedor..."
+        )
+
+    logger.error("✗ Todos los proveedores de IA fallaron.")
+    return None, None, None

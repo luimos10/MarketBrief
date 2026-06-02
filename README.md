@@ -585,7 +585,13 @@ y la sección correspondiente se omite gracefully.
 ### Gemini devuelve `503 UNAVAILABLE`
 
 Saturación temporal del proveedor. El cliente reintenta 3x con backoff exponencial.
-Si persiste, usa Groq:
+Si tras los reintentos sigue fallando, hay **fallback automático a Groq**: si
+`GROQ_API_KEY` está configurada, el brief se genera con Groq sin intervención y el
+título/footer del informe muestran el modelo que **realmente** lo produjo (ej.
+"Analizado con Groq (…)"). Solo si **todos** los proveedores fallan se aborta la
+corrida (en la nube, eso dispara el aviso de fallo por Telegram).
+
+Para forzar Groq manualmente desde el inicio:
 
 ```powershell
 .\venv\Scripts\python.exe brief.py --model groq --html

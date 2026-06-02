@@ -11,9 +11,73 @@ import re
 import logging
 import webbrowser
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 logger = logging.getLogger("MarketBrief")
+
+
+# ═══════════════════════════════════════════════════════
+# SUBTÍTULO: RELOJES DE CADA BOLSA + PRÓXIMA APERTURA
+# ═══════════════════════════════════════════════════════
+
+# Meses en español (el runner de la nube no tiene locale 'es', así que
+# strftime("%B") devolvería "June" en inglés).
+SPANISH_MONTHS = [
+    "", "enero", "febrero", "marzo", "abril", "mayo", "junio",
+    "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+]
+
+# (nombre, zona horaria, hora_apertura, minuto_apertura)
+EXCHANGES = [
+    ("Tokio",      "Asia/Tokyo",        9, 0),
+    ("Londres",    "Europe/London",     8, 0),
+    ("Nueva York", "America/New_York",  9, 30),
+]
+
+
+def build_header_subtitle(now_utc: datetime | None = None) -> str:
+    """Construye el subtítulo HTML del header: fecha, próxima bolsa en abrir
+    y la hora local actual de cada bolsa.
+
+    Ej:
+        01 de junio 2026
+        🔔 Próxima apertura: NUEVA YORK
+        Tokio 23:30 · Londres 14:30 · Nueva York 09:00
+    """
+    now = now_utc or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+
+    clocks = []          # (nombre, "HH:MM")
+    next_open = None     # (delta, nombre, fecha_local)
+
+    for name, tz, oh, om in EXCHANGES:
+        local = now.astimezone(ZoneInfo(tz))
+        clocks.append((name, local.strftime("%H:%M")))
+
+        # Siguiente apertura: hoy si aún no pasó, si no el próximo día hábil.
+        candidate = local.replace(hour=oh, minute=om, second=0, microsecond=0)
+        if candidate <= local:
+            candidate += timedelta(days=1)
+        while candidate.weekday() >= 5:   # 5=sáb, 6=dom
+            candidate += timedelta(days=1)
+
+        delta = (candidate - local).total_seconds()
+        if next_open is None or delta < next_open[0]:
+            next_open = (delta, name, candidate)
+
+    # Fecha en español, tomada de la bolsa que está por abrir (la más relevante).
+    ref_date = next_open[2]
+    date_line = f"{ref_date.day:02d} de {SPANISH_MONTHS[ref_date.month]} {ref_date.year}"
+    session_name = next_open[1].upper()
+    clocks_line = " · ".join(f"{name} {hhmm}" for name, hhmm in clocks)
+
+    return (
+        f'<span class="header-day">{date_line}</span>'
+        f'<span class="header-session">🔔 Próxima apertura: {session_name}</span>'
+        f'<span class="header-clocks">{clocks_line}</span>'
+    )
 
 
 # ═══════════════════════════════════════════════════════
@@ -89,6 +153,20 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         .header-date {{
             color: var(--text-muted);
             font-size: 0.82rem;
+        }}
+        .header-day {{ display: block; }}
+        .header-session {{
+            display: block;
+            color: var(--text);
+            font-weight: 600;
+            margin-top: 0.15rem;
+        }}
+        .header-clocks {{
+            display: block;
+            color: var(--text-dim);
+            font-size: 0.76rem;
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            margin-top: 0.1rem;
         }}
 
         /* ─── LAYOUT ─── */
@@ -298,7 +376,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <header class="site-header">
         <div class="header-badge">Pre-Market Brief</div>
         <h1 class="header-title">{report_title}</h1>
-        <div class="header-date">{date} — New York Session</div>
+        <div class="header-date">{header_subtitle}</div>
     </header>
 
     <div class="main-container">
@@ -726,7 +804,10 @@ def save_html(
         Ruta del archivo generado
     """
     date_str = datetime.now().strftime("%Y-%m-%d")
-    date_display = datetime.now().strftime("%d de %B de %Y — %H:%M hrs")
+    header_subtitle = build_header_subtitle()
+    # Fecha plana solo para el <title> de la pestaña del navegador.
+    now_local = datetime.now()
+    tab_date = f"{now_local.day:02d} de {SPANISH_MONTHS[now_local.month]} {now_local.year}"
 
     filename = f"brief_{date_str}.html"
     filepath = os.path.join(output_dir, filename)
@@ -734,7 +815,8 @@ def save_html(
     brief_json = _extract_brief_json(brief_text)
     html_content = markdown_to_html(brief_text)
     full_html = HTML_TEMPLATE.format(
-        date=date_display,
+        date=tab_date,
+        header_subtitle=header_subtitle,
         content=html_content,
         report_title=report_title,
         ai_label=ai_label,
