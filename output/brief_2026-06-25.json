@@ -6,58 +6,58 @@
   "mercado_lider": "Mixto",
   "principales": {
     "BTC": {
-      "sesgo": "Neutral",
-      "precio_referencia": 61268.0,
-      "soporte": 59102.7,
-      "resistencia": 62572.0,
-      "invalidacion": 59000.0,
-      "setup": "none"
+      "sesgo": "Bajista",
+      "precio_referencia": 60166.0,
+      "soporte": 58115.01,
+      "resistencia": 61962.4,
+      "invalidacion": 63311.99,
+      "setup": "continuacion"
     },
     "SP500": {
-      "sesgo": "Alcista",
-      "precio_referencia": 7488.5,
+      "sesgo": "Neutral",
+      "precio_referencia": 7450.25,
       "soporte": 7404.25,
       "resistencia": 7599.25,
-      "invalidacion": 7390.0,
-      "setup": "continuacion"
+      "invalidacion": 7320.0,
+      "setup": "none"
     },
     "NASDAQ": {
-      "sesgo": "Alcista",
-      "precio_referencia": 30207.5,
+      "sesgo": "Neutral",
+      "precio_referencia": 29854.25,
       "soporte": 29264.75,
       "resistencia": 30968.0,
-      "invalidacion": 29200.0,
-      "setup": "continuacion"
+      "invalidacion": 29000.0,
+      "setup": "none"
     },
     "GOLD": {
       "sesgo": "Bajista",
-      "precio_referencia": 4030.7,
+      "precio_referencia": 4042.0,
       "soporte": 3963.3,
-      "resistencia": 4050.0,
-      "invalidacion": 4060.0,
+      "resistencia": 4323.2002,
+      "invalidacion": 4100.0,
       "setup": "continuacion"
     },
     "OIL": {
       "sesgo": "Neutral",
-      "precio_referencia": 69.55,
-      "soporte": 68.9,
-      "resistencia": 70.0,
-      "invalidacion": 70.5,
+      "precio_referencia": 71.51,
+      "soporte": 69.63,
+      "resistencia": 78.96,
+      "invalidacion": 73.0,
       "setup": "none"
     }
   },
   "macro_context": {
     "DXY": {
-      "sesgo": "Muy alcista",
-      "nivel": 101.551
+      "sesgo": "Alcista",
+      "nivel": 101.441
     },
     "VIX": {
       "sesgo": "Neutral",
-      "nivel": 17.84
+      "nivel": 18.89
     },
     "US10Y": {
       "sesgo": "Neutral",
-      "nivel": 4.367
+      "nivel": 4.392
     }
   }
 }
