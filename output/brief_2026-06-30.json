@@ -7,57 +7,57 @@
   "principales": {
     "BTC": {
       "sesgo": "Bajista",
-      "precio_referencia": 58509.2,
-      "soporte": 58389.9,
-      "resistencia": 59870.65,
-      "invalidacion": 60260.21,
+      "precio_referencia": 58614.01,
+      "soporte": 58201.0,
+      "resistencia": 59524.01,
+      "invalidacion": 60296.56,
       "setup": "continuacion"
     },
     "SP500": {
       "sesgo": "Alcista",
-      "precio_referencia": 7500.25,
-      "soporte": 7460.41,
-      "resistencia": 7517.5,
-      "invalidacion": 7357.25,
+      "precio_referencia": 7544.5,
+      "soporte": 7535.4271,
+      "resistencia": 7550.75,
+      "invalidacion": 7464.6282,
       "setup": "continuacion"
     },
     "NASDAQ": {
       "sesgo": "Alcista",
-      "precio_referencia": 30036.25,
-      "soporte": 29758.49,
-      "resistencia": 30263.75,
-      "invalidacion": 29160.5,
+      "precio_referencia": 30529.5,
+      "soporte": 30364.8217,
+      "resistencia": 30540.25,
+      "invalidacion": 29805.39,
       "setup": "continuacion"
     },
     "GOLD": {
-      "sesgo": "Bajista",
-      "precio_referencia": 4029.0,
-      "soporte": 3955.4,
-      "resistencia": 4024.97,
-      "invalidacion": 4104.7,
-      "setup": "continuacion"
+      "sesgo": "Neutral",
+      "precio_referencia": 4023.8999,
+      "soporte": 3963.3,
+      "resistencia": 4026.4744,
+      "invalidacion": 4104.7002,
+      "setup": "none"
     },
     "OIL": {
-      "sesgo": "Bajista",
-      "precio_referencia": 71.01,
+      "sesgo": "Neutral",
+      "precio_referencia": 70.06,
       "soporte": 68.56,
-      "resistencia": 70.57,
+      "resistencia": 70.3244,
       "invalidacion": 73.18,
-      "setup": "continuacion"
+      "setup": "none"
     }
   },
   "macro_context": {
     "DXY": {
       "sesgo": "Alcista",
-      "nivel": 101.356
+      "nivel": 101.172
     },
     "VIX": {
       "sesgo": "Bajista",
-      "nivel": 17.6
+      "nivel": 16.45
     },
     "US10Y": {
       "sesgo": "Alcista",
-      "nivel": 4.39
+      "nivel": 4.418
     }
   }
 }
