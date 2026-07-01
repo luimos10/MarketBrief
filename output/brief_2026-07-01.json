@@ -6,58 +6,58 @@
   "mercado_lider": "Nasdaq",
   "principales": {
     "BTC": {
-      "sesgo": "Bajista",
-      "precio_referencia": 58590.94,
+      "sesgo": "Neutral",
+      "precio_referencia": 60236.37,
       "soporte": 57800.19,
-      "resistencia": 59457.0,
-      "invalidacion": 60260.2,
-      "setup": "continuacion"
+      "resistencia": 61334.0,
+      "invalidacion": 57750.0,
+      "setup": "none"
     },
     "SP500": {
       "sesgo": "Alcista",
-      "precio_referencia": 7530.0,
-      "soporte": 7500.0,
-      "resistencia": 7567.75,
-      "invalidacion": 7471.17,
+      "precio_referencia": 7536.25,
+      "soporte": 7471.79,
+      "resistencia": 7628.5,
+      "invalidacion": 7357.25,
       "setup": "continuacion"
     },
     "NASDAQ": {
       "sesgo": "Alcista",
-      "precio_referencia": 30268.75,
-      "soporte": 30000.0,
-      "resistencia": 30599.75,
-      "invalidacion": 29849.06,
+      "precio_referencia": 30059.0,
+      "soporte": 29829.16,
+      "resistencia": 30968.0,
+      "invalidacion": 29160.5,
       "setup": "continuacion"
     },
     "GOLD": {
       "sesgo": "Neutral",
-      "precio_referencia": 4040.8,
+      "precio_referencia": 4051.3,
       "soporte": 3962.5,
-      "resistencia": 4078.7,
-      "invalidacion": 4193.67,
+      "resistencia": 4194.67,
+      "invalidacion": 3962.5,
       "setup": "continuacion"
     },
     "OIL": {
-      "sesgo": "Neutral",
-      "precio_referencia": 68.66,
-      "soporte": 68.22,
-      "resistencia": 72.5,
-      "invalidacion": 78.2,
-      "setup": "continuacion"
+      "sesgo": "Bajista",
+      "precio_referencia": 67.99,
+      "soporte": 67.95,
+      "resistencia": 78.13,
+      "invalidacion": 67.95,
+      "setup": "reversion"
     }
   },
   "macro_context": {
     "DXY": {
       "sesgo": "Alcista",
-      "nivel": 101.502
+      "nivel": 101.413
     },
     "VIX": {
       "sesgo": "Bajista",
-      "nivel": 16.85
+      "nivel": 16.59
     },
     "US10Y": {
       "sesgo": "Alcista",
-      "nivel": 4.493
+      "nivel": 4.475
     }
   }
 }
