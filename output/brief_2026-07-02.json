@@ -6,58 +6,58 @@
   "mercado_lider": "Mixto",
   "principales": {
     "BTC": {
-      "sesgo": "Bajista",
-      "precio_referencia": 60516.61,
-      "soporte": 58287.1,
-      "resistencia": 61334.0,
-      "invalidacion": 62050.68,
+      "sesgo": "Neutral",
+      "precio_referencia": 61554.02,
+      "soporte": 58590.0,
+      "resistencia": 61614.0,
+      "invalidacion": 57800.0,
       "setup": "none"
     },
     "SP500": {
       "sesgo": "Alcista",
-      "precio_referencia": 7537.25,
-      "soporte": 7478.6,
+      "precio_referencia": 7572.0,
+      "soporte": 7549.2,
       "resistencia": 7611.5,
-      "invalidacion": 7357.25,
+      "invalidacion": 7500.0,
       "setup": "continuacion"
     },
     "NASDAQ": {
       "sesgo": "Alcista",
-      "precio_referencia": 29985.25,
-      "soporte": 29846.88,
-      "resistencia": 30968.0,
-      "invalidacion": 29160.5,
+      "precio_referencia": 30255.0,
+      "soporte": 30170.0,
+      "resistencia": 30599.75,
+      "invalidacion": 29800.0,
       "setup": "continuacion"
     },
     "GOLD": {
       "sesgo": "Neutral",
-      "precio_referencia": 4087.7,
-      "soporte": 3962.5,
-      "resistencia": 4100.0,
-      "invalidacion": 4186.09,
+      "precio_referencia": 4140.3999,
+      "soporte": 4092.5,
+      "resistencia": 4154.2,
+      "invalidacion": 4050.0,
       "setup": "none"
     },
     "OIL": {
       "sesgo": "Bajista",
-      "precio_referencia": 67.82,
-      "soporte": 67.56,
-      "resistencia": 68.43,
-      "invalidacion": 77.2,
+      "precio_referencia": 67.48,
+      "soporte": 67.04,
+      "resistencia": 68.13,
+      "invalidacion": 69.0,
       "setup": "continuacion"
     }
   },
   "macro_context": {
     "DXY": {
-      "sesgo": "Alcista",
-      "nivel": 101.3
+      "sesgo": "Neutral",
+      "nivel": 100.667
     },
     "VIX": {
       "sesgo": "Bajista",
-      "nivel": 16.59
+      "nivel": 16.0
     },
     "US10Y": {
-      "sesgo": "Neutral",
-      "nivel": 4.372
+      "sesgo": "Alcista",
+      "nivel": 4.461
     }
   }
 }
