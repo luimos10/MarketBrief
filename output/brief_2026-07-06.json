@@ -6,58 +6,58 @@
   "mercado_lider": "SP500",
   "principales": {
     "BTC": {
-      "sesgo": "Bajista",
-      "precio_referencia": 61722.88,
-      "soporte": 61668.2,
-      "resistencia": 62487.98,
-      "invalidacion": 63999.0,
-      "setup": "continuacion"
+      "sesgo": "Neutral",
+      "precio_referencia": 64134.38,
+      "soporte": 62890.0,
+      "resistencia": 64700.0,
+      "invalidacion": 61306.84,
+      "setup": "none"
     },
     "SP500": {
       "sesgo": "Alcista",
-      "precio_referencia": 7560.5,
-      "soporte": 7530.0877,
-      "resistencia": 7599.25,
-      "invalidacion": 7485.65,
+      "precio_referencia": 7592.5,
+      "soporte": 7581.08,
+      "resistencia": 7601.25,
+      "invalidacion": 7550.0,
       "setup": "continuacion"
     },
     "NASDAQ": {
       "sesgo": "Alcista",
-      "precio_referencia": 29912.75,
-      "soporte": 29665.4038,
+      "precio_referencia": 29882.75,
+      "soporte": 29813.42,
       "resistencia": 30599.75,
-      "invalidacion": 29816.3464,
+      "invalidacion": 29600.0,
       "setup": "continuacion"
     },
     "GOLD": {
       "sesgo": "Neutral",
-      "precio_referencia": 4149.0,
-      "soporte": 3962.5,
-      "resistencia": 4172.2161,
-      "invalidacion": 4184.5737,
+      "precio_referencia": 4174.7998,
+      "soporte": 4167.26,
+      "resistencia": 4187.04,
+      "invalidacion": 4100.0,
       "setup": "none"
     },
     "OIL": {
       "sesgo": "Bajista",
-      "precio_referencia": 68.27,
+      "precio_referencia": 68.81,
       "soporte": 67.04,
-      "resistencia": 68.424,
-      "invalidacion": 71.6,
+      "resistencia": 68.53,
+      "invalidacion": 70.0,
       "setup": "continuacion"
     }
   },
   "macro_context": {
     "DXY": {
-      "sesgo": "Alcista",
-      "nivel": 101.108
+      "sesgo": "Neutral",
+      "nivel": 100.855
     },
     "VIX": {
       "sesgo": "Bajista",
-      "nivel": 16.39
+      "nivel": 15.57
     },
     "US10Y": {
       "sesgo": "Alcista",
-      "nivel": 4.461
+      "nivel": 4.479
     }
   }
 }
