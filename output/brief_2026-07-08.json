@@ -2,62 +2,62 @@
   "fecha": "2026-07-08",
   "prompt_version": "v1.4",
   "ai_model": "gemini",
-  "sesgo_global": "Neutral",
-  "mercado_lider": "Mixto",
+  "sesgo_global": "Alcista",
+  "mercado_lider": "SP500",
   "principales": {
     "BTC": {
-      "sesgo": "Bajista",
-      "precio_referencia": 61948.24,
-      "soporte": 61743.83,
-      "resistencia": 64243.75,
-      "invalidacion": 61306.84,
-      "setup": "continuacion"
+      "sesgo": "Neutral",
+      "precio_referencia": 62176.01,
+      "soporte": 61705.8,
+      "resistencia": 62377.0,
+      "invalidacion": 61544.56,
+      "setup": "none"
     },
     "SP500": {
       "sesgo": "Alcista",
-      "precio_referencia": 7511.75,
-      "soporte": 7468.5,
-      "resistencia": 7602.5,
-      "invalidacion": 7400.0,
+      "precio_referencia": 7517.0,
+      "soporte": 7496.7,
+      "resistencia": 7550.0,
+      "invalidacion": 7450.0,
       "setup": "continuacion"
     },
     "NASDAQ": {
-      "sesgo": "Neutral",
-      "precio_referencia": 29192.0,
-      "soporte": 28909.75,
-      "resistencia": 30553.75,
-      "invalidacion": 28227.75,
+      "sesgo": "Alcista",
+      "precio_referencia": 29402.5,
+      "soporte": 29210.0,
+      "resistencia": 29742.4,
+      "invalidacion": 29000.0,
       "setup": "none"
     },
     "GOLD": {
-      "sesgo": "Bajista",
-      "precio_referencia": 4094.3999,
-      "soporte": 3962.5,
-      "resistencia": 4199.7,
-      "invalidacion": 3900.0,
-      "setup": "continuacion"
+      "sesgo": "Neutral",
+      "precio_referencia": 4085.0,
+      "soporte": 4078.9,
+      "resistencia": 4172.1,
+      "invalidacion": 4050.0,
+      "setup": "none"
     },
     "OIL": {
-      "sesgo": "Alcista",
-      "precio_referencia": 73.32,
-      "soporte": 67.04,
-      "resistencia": 75.3,
-      "invalidacion": 66.0,
+      "sesgo": "Neutral",
+      "precio_referencia": 74.53,
+      "soporte": 74.27,
+      "resistencia": 75.75,
+      "invalidacion": 73.5,
       "setup": "continuacion"
     }
   },
   "macro_context": {
     "DXY": {
       "sesgo": "Alcista",
-      "nivel": 101.139
+      "nivel": 101.066
     },
     "VIX": {
       "sesgo": "Bajista",
-      "nivel": 17.45
+      "nivel": 16.9
     },
     "US10Y": {
       "sesgo": "Muy alcista",
-      "nivel": 4.559
+      "nivel": 4.569
     }
   }
 }
