@@ -1,0 +1,63 @@
+{
+  "fecha": "2026-07-22",
+  "prompt_version": "v1.4",
+  "ai_model": "gemini",
+  "sesgo_global": "Alcista",
+  "mercado_lider": "Oil",
+  "principales": {
+    "BTC": {
+      "sesgo": "Neutral",
+      "precio_referencia": 65839.68,
+      "soporte": 65421.6,
+      "resistencia": 66956.15,
+      "invalidacion": 63886.65,
+      "setup": "sweep"
+    },
+    "SP500": {
+      "sesgo": "Neutral",
+      "precio_referencia": 7527.75,
+      "soporte": 7473.0,
+      "resistencia": 7632.0,
+      "invalidacion": 7357.25,
+      "setup": "none"
+    },
+    "NASDAQ": {
+      "sesgo": "Alcista",
+      "precio_referencia": 29081.0,
+      "soporte": 28408.25,
+      "resistencia": 29797.0,
+      "invalidacion": 28408.25,
+      "setup": "none"
+    },
+    "GOLD": {
+      "sesgo": "Neutral",
+      "precio_referencia": 4134.2998,
+      "soporte": 4085.4941,
+      "resistencia": 4199.7002,
+      "invalidacion": 3962.5,
+      "setup": "continuacion"
+    },
+    "OIL": {
+      "sesgo": "Alcista",
+      "precio_referencia": 85.87,
+      "soporte": 84.2288,
+      "resistencia": 85.88,
+      "invalidacion": 78.58,
+      "setup": "continuacion"
+    }
+  },
+  "macro_context": {
+    "DXY": {
+      "sesgo": "Alcista",
+      "nivel": 101.121
+    },
+    "VIX": {
+      "sesgo": "Neutral",
+      "nivel": 17.05
+    },
+    "US10Y": {
+      "sesgo": "Muy alcista",
+      "nivel": 4.628
+    }
+  }
+}
