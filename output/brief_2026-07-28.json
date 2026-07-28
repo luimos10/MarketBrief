@@ -7,57 +7,57 @@
   "principales": {
     "BTC": {
       "sesgo": "Bajista",
-      "precio_referencia": 63522.07,
+      "precio_referencia": 63543.18,
       "soporte": 63059.39,
-      "resistencia": 64554.01,
+      "resistencia": 64375.0,
       "invalidacion": 65718.0,
       "setup": "continuacion"
     },
     "SP500": {
-      "sesgo": "Neutral",
-      "precio_referencia": 7424.25,
+      "sesgo": "Alcista",
+      "precio_referencia": 7458.25,
       "soporte": 7411.75,
-      "resistencia": 7452.609,
-      "invalidacion": 7632.0,
-      "setup": "none"
+      "resistencia": 7563.5,
+      "invalidacion": 7390.0,
+      "setup": "consolidacion"
     },
     "NASDAQ": {
-      "sesgo": "Bajista",
-      "precio_referencia": 27856.5,
+      "sesgo": "Neutral",
+      "precio_referencia": 27987.75,
       "soporte": 27839.5,
-      "resistencia": 28192.2307,
-      "invalidacion": 30599.75,
-      "setup": "continuacion"
+      "resistencia": 28138.29,
+      "invalidacion": 27700.0,
+      "setup": "none"
     },
     "GOLD": {
       "sesgo": "Bajista",
-      "precio_referencia": 4047.0,
-      "soporte": 4034.6,
-      "resistencia": 4079.2145,
-      "invalidacion": 4199.7,
+      "precio_referencia": 4033.7,
+      "soporte": 4016.5,
+      "resistencia": 4060.16,
+      "invalidacion": 4100.0,
       "setup": "continuacion"
     },
     "OIL": {
-      "sesgo": "Alcista",
-      "precio_referencia": 82.16,
-      "soporte": 80.6,
-      "resistencia": 82.9957,
-      "invalidacion": 93.5,
-      "setup": "continuacion"
+      "sesgo": "Neutral",
+      "precio_referencia": 81.0,
+      "soporte": 79.8,
+      "resistencia": 82.3,
+      "invalidacion": 79.0,
+      "setup": "none"
     }
   },
   "macro_context": {
     "DXY": {
       "sesgo": "Alcista",
-      "nivel": 101.521
+      "nivel": 101.527
     },
     "VIX": {
       "sesgo": "Neutral",
-      "nivel": 18.67
+      "nivel": 18.6
     },
     "US10Y": {
       "sesgo": "Alcista",
-      "nivel": 4.641
+      "nivel": 4.629
     }
   }
 }
