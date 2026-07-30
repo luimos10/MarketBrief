@@ -7,57 +7,57 @@
   "principales": {
     "BTC": {
       "sesgo": "Bajista",
-      "precio_referencia": 64916.8,
-      "soporte": 63267.34,
-      "resistencia": 65043.94,
-      "invalidacion": 63543.14,
+      "precio_referencia": 64919.88,
+      "soporte": 63603.92,
+      "resistencia": 65176.6,
+      "invalidacion": 63500.0,
       "setup": "continuacion"
     },
     "SP500": {
-      "sesgo": "Neutral",
-      "precio_referencia": 7396.0,
-      "soporte": 7324.0,
-      "resistencia": 7482.74,
-      "invalidacion": 7320.0,
-      "setup": "none"
-    },
-    "NASDAQ": {
-      "sesgo": "Bajista",
-      "precio_referencia": 27788.0,
-      "soporte": 27201.5,
-      "resistencia": 27788.0,
-      "invalidacion": 27200.0,
+      "sesgo": "Alcista",
+      "precio_referencia": 7481.75,
+      "soporte": 7432.16,
+      "resistencia": 7524.75,
+      "invalidacion": 7400.0,
       "setup": "continuacion"
     },
+    "NASDAQ": {
+      "sesgo": "Neutral",
+      "precio_referencia": 28374.5,
+      "soporte": 28026.81,
+      "resistencia": 28763.25,
+      "invalidacion": 27900.0,
+      "setup": "none"
+    },
     "GOLD": {
-      "sesgo": "Alcista",
-      "precio_referencia": 4133.2,
-      "soporte": 4017.9,
-      "resistencia": 4199.7,
-      "invalidacion": 4000.0,
+      "sesgo": "Neutral",
+      "precio_referencia": 4164.1,
+      "soporte": 4143.48,
+      "resistencia": 4170.7,
+      "invalidacion": 4100.0,
       "setup": "continuacion"
     },
     "OIL": {
       "sesgo": "Neutral",
-      "precio_referencia": 84.1,
-      "soporte": 84.1,
-      "resistencia": 84.68,
-      "invalidacion": 83.0,
+      "precio_referencia": 84.07,
+      "soporte": 83.03,
+      "resistencia": 84.24,
+      "invalidacion": 82.0,
       "setup": "none"
     }
   },
   "macro_context": {
     "DXY": {
       "sesgo": "Neutral",
-      "nivel": 100.69
+      "nivel": 99.969
     },
     "VIX": {
       "sesgo": "Neutral",
-      "nivel": 19.12
+      "nivel": 17.09
     },
     "US10Y": {
-      "sesgo": "Alcista",
-      "nivel": 4.679
+      "sesgo": "Muy alcista",
+      "nivel": 4.663
     }
   }
 }
