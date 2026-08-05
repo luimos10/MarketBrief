@@ -7,57 +7,57 @@
   "principales": {
     "BTC": {
       "sesgo": "Neutral",
-      "precio_referencia": 64319.78,
-      "soporte": 63950.0,
-      "resistencia": 64581.43,
-      "invalidacion": 63615.38,
-      "setup": "none"
+      "precio_referencia": 64689.58,
+      "soporte": 63880.0,
+      "resistencia": 65025.22,
+      "invalidacion": 63800.0,
+      "setup": "sweep"
     },
     "SP500": {
       "sesgo": "Alcista",
-      "precio_referencia": 7802.5,
-      "soporte": 7745.78,
-      "resistencia": 7805.25,
-      "invalidacion": 7700.0,
+      "precio_referencia": 7765.75,
+      "soporte": 7700.0,
+      "resistencia": 7786.0,
+      "invalidacion": 7650.0,
       "setup": "continuacion"
     },
     "NASDAQ": {
       "sesgo": "Alcista",
-      "precio_referencia": 29940.5,
-      "soporte": 29719.13,
+      "precio_referencia": 29628.0,
+      "soporte": 29000.0,
       "resistencia": 30077.75,
-      "invalidacion": 29500.0,
+      "invalidacion": 28800.0,
       "setup": "continuacion"
     },
     "GOLD": {
       "sesgo": "Neutral",
-      "precio_referencia": 4252.7998,
-      "soporte": 4187.88,
-      "resistencia": 4273.6,
-      "invalidacion": 4150.0,
+      "precio_referencia": 4317.3999,
+      "soporte": 4255.7,
+      "resistencia": 4320.4,
+      "invalidacion": 4200.0,
       "setup": "none"
     },
     "OIL": {
       "sesgo": "Bajista",
-      "precio_referencia": 76.1,
-      "soporte": 74.24,
-      "resistencia": 76.1,
-      "invalidacion": 77.0,
+      "precio_referencia": 74.99,
+      "soporte": 74.89,
+      "resistencia": 75.47,
+      "invalidacion": 76.0,
       "setup": "continuacion"
     }
   },
   "macro_context": {
     "DXY": {
       "sesgo": "Neutral",
-      "nivel": 99.717
+      "nivel": 99.69
     },
     "VIX": {
       "sesgo": "Bajista",
-      "nivel": 16.85
+      "nivel": 15.81
     },
     "US10Y": {
       "sesgo": "Neutral",
-      "nivel": 4.621
+      "nivel": 4.617
     }
   }
 }
