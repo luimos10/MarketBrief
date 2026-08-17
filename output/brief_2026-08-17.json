@@ -3,61 +3,61 @@
   "prompt_version": "v1.4",
   "ai_model": "gemini",
   "sesgo_global": "Alcista",
-  "mercado_lider": "SP500",
+  "mercado_lider": "XLE_Energy",
   "principales": {
     "BTC": {
       "sesgo": "Neutral",
-      "precio_referencia": 63551.58,
-      "soporte": 62716.0,
-      "resistencia": 63781.69,
-      "invalidacion": 64103.95,
+      "precio_referencia": 64460.95,
+      "soporte": 63858.61,
+      "resistencia": 64610.01,
+      "invalidacion": 62751.1,
       "setup": "none"
     },
     "SP500": {
       "sesgo": "Alcista",
-      "precio_referencia": 7802.75,
+      "precio_referencia": 7764.75,
       "soporte": 7738.0,
       "resistencia": 7838.5,
-      "invalidacion": 7679.89,
+      "invalidacion": 7676.25,
       "setup": "continuacion"
     },
     "NASDAQ": {
       "sesgo": "Alcista",
-      "precio_referencia": 30191.5,
+      "precio_referencia": 30077.75,
       "soporte": 29533.5,
-      "resistencia": 30343.0,
-      "invalidacion": 29503.32,
+      "resistencia": 30283.0,
+      "invalidacion": 29492.7,
       "setup": "continuacion"
     },
     "GOLD": {
       "sesgo": "Neutral",
-      "precio_referencia": 4436.7,
-      "soporte": 4315.0,
-      "resistencia": 4473.2,
-      "invalidacion": 4286.02,
-      "setup": "none"
+      "precio_referencia": 4473.7,
+      "soporte": 4461.97,
+      "resistencia": 4475.89,
+      "invalidacion": 4251.2,
+      "setup": "continuacion"
     },
     "OIL": {
       "sesgo": "Alcista",
-      "precio_referencia": 83.06,
-      "soporte": 82.06,
-      "resistencia": 84.61,
-      "invalidacion": 81.2,
+      "precio_referencia": 85.01,
+      "soporte": 83.16,
+      "resistencia": 85.37,
+      "invalidacion": 81.39,
       "setup": "continuacion"
     }
   },
   "macro_context": {
     "DXY": {
-      "sesgo": "Bajista",
-      "nivel": 99.464
+      "sesgo": "Neutral",
+      "nivel": 99.581
     },
     "VIX": {
       "sesgo": "Bajista",
-      "nivel": 15.06
+      "nivel": 15.19
     },
     "US10Y": {
       "sesgo": "Alcista",
-      "nivel": 4.712
+      "nivel": 4.724
     }
   }
 }
