@@ -282,7 +282,7 @@ Todas configuradas en `.env`. Las marcadas como `(opcional)` se omiten gracefull
 | `GEMINI_API_KEY` | — | Required si AI_MODEL=gemini |
 | `GEMINI_MODEL` | `gemini-2.5-flash-lite` | |
 | `GROQ_API_KEY` | — | Required si AI_MODEL=groq; también habilita el fallback |
-| `GROQ_MODEL` | `meta-llama/llama-4-scout-17b-16e-instruct` | |
+| `GROQ_MODEL` | `qwen/qwen3.6-27b` | Modelo usado por Groq y como fallback de Gemini |
 | `MAX_TOKENS` | `12000` | Tokens de salida máximos |
 | `GROQ_MAX_TOKENS` | `8192` | Techo Groq (clamp automático) |
 

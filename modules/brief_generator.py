@@ -136,7 +136,7 @@ def generate_brief(
 
 
 # ═══════════════════════════════════════════════════════
-# GROQ: Generación de brief usando Llama 3 (Groq API)
+# GROQ: Generación de brief (Groq API)
 # ═══════════════════════════════════════════════════════
 
 
@@ -144,18 +144,18 @@ def generate_brief_groq(
     system_prompt: str,
     user_prompt: str,
     api_key: str,
-    model: str = "llama3-70b-8192",
+    model: str = "qwen/qwen3.6-27b",
     max_tokens: int = 8000,
     max_retries: int = 3,
 ) -> str:
     """
-    Genera el briefing usando Groq (Llama 3 u otro modelo soportado).
+    Genera el briefing usando Groq.
 
     Args:
         system_prompt: Instrucciones del sistema para el modelo
         user_prompt: El prompt completo con datos + template
         api_key: API key de Groq
-        model: Modelo a usar (por defecto llama3-70b-8192)
+        model: Modelo a usar (por defecto qwen/qwen3.6-27b)
         max_tokens: Tokens máximos de respuesta
         max_retries: Reintentos ante errores transitorios
 
@@ -176,6 +176,9 @@ def generate_brief_groq(
         "max_tokens": max_tokens,
         "temperature": 0.3,
     }
+    if model.startswith("qwen/"):
+        # Qwen otherwise returns its internal reasoning in the brief body.
+        payload["reasoning_effort"] = "none"
     for attempt in range(1, max_retries + 1):
         try:
             response = requests.post(url, headers=headers,
@@ -215,7 +218,7 @@ def generate_brief_with_fallback(
     gemini_max_tokens: int = 16000,
     enable_search: bool = True,
     groq_api_key: str = "",
-    groq_model: str = "llama3-70b-8192",
+    groq_model: str = "qwen/qwen3.6-27b",
     groq_max_tokens: int = 8192,
 ) -> tuple[str | None, str | None, str | None]:
     """

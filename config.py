@@ -44,7 +44,7 @@ FRED_API_KEY = os.getenv("FRED_API_KEY", "")
 AI_MODEL = os.getenv("AI_MODEL", "gemini")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 GROQ_MODEL = os.getenv(
-    "GROQ_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct"
+    "GROQ_MODEL", "qwen/qwen3.6-27b"
 )
 # MAX_TOKENS: techo de output del LLM. Gemini 2.5 Flash soporta hasta ~65K,
 # pero con thinking interno activado consume tokens invisibles. Subimos a 16K
