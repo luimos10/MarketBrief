@@ -93,29 +93,30 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         :root {{
-            /* Background scale (warm-neutral very dark) */
-            --bg:           #0a0a0b;
-            --surface:      #131316;
-            --surface-2:    #1a1a1e;
-            --border:       #24242a;
-            --border-soft:  #1a1a1e;
+            /* Dark graphite scale */
+            --bg:           #0b0f14;
+            --surface:      #121821;
+            --surface-2:    #18212c;
+            --border:       #263241;
+            --border-soft:  #1b2633;
 
-            /* Text scale (off-white) */
-            --text:         #e8e8ea;
-            --text-muted:   #9a9aa1;
-            --text-dim:     #5a5a62;
+            /* Text scale */
+            --text:         #e6edf3;
+            --text-muted:   #9ba8b7;
+            --text-dim:     #64748b;
 
-            /* Único acento funcional */
-            --accent:       #7c8df0;
+            /* Functional accent and market states */
+            --accent:       #38bdf8;
+            --bull:         #34d399;
+            --bear:         #fb7185;
+            --neutral:      #fbbf24;
 
-            /* Bias states (Apple-style, solo donde aportan) */
-            --bull:         #34c759;
-            --bear:         #ff453a;
-            --neutral:      #ffd60a;
+            --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            --font-mono: ui-monospace, "Cascadia Code", "SFMono-Regular", Consolas, monospace;
         }}
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         body {{
-            font-family: 'Inter', -apple-system, 'Segoe UI Variable', 'Segoe UI', sans-serif;
+            font-family: var(--font-sans);
             background: var(--bg);
             color: var(--text);
             line-height: 1.65;
@@ -165,7 +166,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             display: block;
             color: var(--text-dim);
             font-size: 0.76rem;
-            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            font-family: var(--font-mono);
             margin-top: 0.1rem;
         }}
 
@@ -238,7 +239,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         }}
         .level-row:last-child {{ border-bottom: none; }}
         .level-row span:first-child {{ color: var(--text-dim); }}
-        .level-val {{ font-family: 'JetBrains Mono', 'Courier New', monospace; font-weight: 500; color: var(--text); }}
+        .level-val {{ font-family: var(--font-mono); font-weight: 500; color: var(--text); }}
         .level-val.green {{ color: var(--bull); }}
         .level-val.red {{ color: var(--bear); }}
         .level-val.muted {{ color: var(--text-muted); }}
@@ -292,7 +293,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             background: var(--surface-2);
             padding: 0.1rem 0.35rem;
             border-radius: 3px;
-            font-family: 'JetBrains Mono', 'SF Mono', 'Courier New', monospace;
+            font-family: var(--font-mono);
             font-size: 0.82rem;
             color: var(--text);
             border: 1px solid var(--border);
@@ -327,7 +328,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             text-align: center;
             color: var(--text);
         }}
-        tr:hover td {{ background: rgba(124, 141, 240, 0.04); }}
+        tr:hover td {{ background: rgba(56, 189, 248, 0.05); }}
         tr:last-child td {{ border-bottom: none; }}
 
         blockquote {{
@@ -359,6 +360,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             .header-title {{ font-size: 1.1rem; }}
         }}
         @media print {{
+            :root {{ --accent: #0369a1; }}
             body {{ background: #fff; color: #1a1a1e; }}
             .site-header {{ background: #f5f5f7; border-color: #d2d2d7; }}
             .header-title {{ color: #1a1a1e; }}
@@ -391,10 +393,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <script>
     var BRIEF_DATA = {brief_json};
 
-    /* Paleta minimalista (debe matchear las CSS vars) */
-    var COLOR_BULL = '#34c759';
-    var COLOR_BEAR = '#ff453a';
-    var COLOR_NEUTRAL = '#ffd60a';
+    /* Paleta dark (debe matchear las CSS vars) */
+    var COLOR_BULL = '#34d399';
+    var COLOR_BEAR = '#fb7185';
+    var COLOR_NEUTRAL = '#fbbf24';
 
     function fmtPrice(v) {{
         if (!v || v === 0) return '—';
@@ -509,14 +511,14 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 scales: {{
                     x: {{
                         min: -100, max: 100,
-                        ticks: {{ color: '#5a5a62', font: {{ size: 10.5 }} }},
-                        grid: {{ color: 'rgba(36,36,42,0.7)' }},
-                        border: {{ color: '#24242a' }}
+                        ticks: {{ color: '#64748b', font: {{ size: 10.5 }} }},
+                        grid: {{ color: 'rgba(38,50,65,0.7)' }},
+                        border: {{ color: '#263241' }}
                     }},
                     y: {{
-                        ticks: {{ color: '#e8e8ea', font: {{ weight: '600', size: 11.5 }} }},
-                        grid: {{ color: 'rgba(36,36,42,0.4)' }},
-                        border: {{ color: '#24242a' }}
+                        ticks: {{ color: '#e6edf3', font: {{ weight: '600', size: 11.5 }} }},
+                        grid: {{ color: 'rgba(38,50,65,0.4)' }},
+                        border: {{ color: '#263241' }}
                     }}
                 }}
             }}

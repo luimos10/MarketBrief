@@ -30,7 +30,8 @@ Ver [Ejecución automática](#ejecución-automática-en-la-nube-github-actions).
 12. [Caché y rendimiento](#caché-y-rendimiento)
 13. [Ejecución automática en la nube (GitHub Actions)](#ejecución-automática-en-la-nube-github-actions)
 14. [Troubleshooting](#troubleshooting)
-15. [Roadmap](#roadmap)
+15. [Skills de diseño para OpenCode](#skills-de-diseño-para-opencode)
+16. [Roadmap](#roadmap)
 
 ---
 
@@ -498,6 +499,33 @@ La caché se guarda en `.cache/` (gitignored).
 ```powershell
 Remove-Item -Recurse -Force .\.cache
 ```
+
+---
+
+## Skills de diseño para OpenCode
+
+El proyecto incluye tres skills locales para que OpenCode aplique criterios
+consistentes al trabajar sobre la interfaz de los briefs. Están en
+`.opencode/skills/` y solo afectan a este repositorio. Tras crear o modificar
+un skill, reinicia OpenCode para que lo vuelva a cargar.
+
+| Skill | Cuándo invocarlo | Qué hace |
+|-------|------------------|----------|
+| `frontend-design` | Crear o modificar HTML, CSS, layout, tarjetas, tablas, gráficos o comportamiento responsive | Implementa cambios visuales en el generador, preservando la jerarquía de datos financieros, accesibilidad y compatibilidad móvil/escritorio. |
+| `design-system` | Unificar colores, tipografías, espaciados, badges, tablas o componentes compartidos | Mantiene y extiende los tokens CSS y patrones reutilizables de la plantilla HTML. |
+| `frontend-review` | Revisar UI, UX, responsive, accesibilidad o regresiones antes de publicar | Audita la interfaz sin editar por defecto y entrega hallazgos priorizados con rutas, líneas y correcciones recomendadas. |
+
+Ejemplos de invocación:
+
+```text
+Usa frontend-design para mejorar la visualización móvil de las tarjetas de activos.
+Usa design-system para unificar los estados bullish, bearish y neutral en el HTML.
+Usa frontend-review para revisar el brief HTML antes de desplegarlo.
+```
+
+La fuente de verdad para cambios visuales es `modules/delivery.py`; los
+archivos `output/brief_*.html` son resultados generados y no deben editarse
+directamente.
 
 ---
 
