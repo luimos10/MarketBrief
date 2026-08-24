@@ -282,15 +282,12 @@ Todas configuradas en `.env`. Las marcadas como `(opcional)` se omiten gracefull
 | `GEMINI_API_KEY` | — | Required si AI_MODEL=gemini |
 | `GEMINI_MODEL` | `gemini-2.5-flash-lite` | |
 | `GROQ_API_KEY` | — | Required si AI_MODEL=groq; también habilita el fallback |
-| `GROQ_MODEL` | `qwen/qwen3.6-27b` | Modelo usado por Groq y como fallback de Gemini |
+| `GROQ_MODEL` | `groq/compound` | Modelo principal de Groq (1er fallback) |
+| `GROQ_FALLBACK_MODEL` | `qwen/qwen3.6-27b` | Modelo secundario de Groq (2do fallback) |
 | `MAX_TOKENS` | `12000` | Tokens de salida máximos |
 | `GROQ_MAX_TOKENS` | `8192` | Techo Groq (clamp automático) |
 
-> **Fallback automático entre proveedores.** Si el proveedor primario falla tras
-> sus reintentos, el brief cae al otro proveedor de forma automática **si su API
-> key está configurada** (ej. `gemini` → `groq`). El título y el footer del informe
-> muestran el modelo que realmente lo generó. Solo si **todos** fallan se aborta la
-> corrida. Lógica en `generate_brief_with_fallback` (`modules/brief_generator.py`).
+> **Cadena de fallback automático entre modelos.** Si Gemini (`gemini-2.5-flash`) falla tras sus reintentos, el brief intenta con Groq usando `groq/compound` y, si este falla, utiliza `qwen/qwen3.6-27b`. El título y el footer del informe muestran el modelo que realmente lo generó. Lógica en `generate_brief_with_fallback` (`modules/brief_generator.py`).
 
 ### Datos de mercado
 

@@ -218,27 +218,39 @@ def generate_brief_with_fallback(
     gemini_max_tokens: int = 16000,
     enable_search: bool = True,
     groq_api_key: str = "",
-    groq_model: str = "qwen/qwen3.6-27b",
+    groq_model: str = "groq/compound",
+    groq_fallback_model: str = "qwen/qwen3.6-27b",
     groq_max_tokens: int = 8192,
 ) -> tuple[str | None, str | None, str | None]:
     """
-    Genera el brief con una cadena de fallback entre proveedores.
+    Genera el brief con una cadena de fallback entre proveedores y modelos.
 
-    Intenta primero el proveedor elegido y, si falla (tras sus reintentos
-    internos), cae al otro proveedor SI su API key está disponible. Así un
-    fallo de Gemini (503 persistente, geobloqueo, cuota) no tumba el envío.
+    Intenta primero el proveedor/modelo primario y, si falla (tras sus reintentos
+    internos), cae a los modelos secundarios en la cadena de fallback SI la API
+    key correspondiente está disponible.
+
+    Cadena por defecto:
+    1. Gemini (gemini-2.5-flash)
+    2. Groq (groq/compound)
+    3. Groq (qwen/qwen3.6-27b)
 
     Returns:
         (brief_text, provider_usado, modelo_usado) si algún proveedor responde;
         (None, None, None) si todos fallan.
     """
-    # Cadena de candidatos: primario primero, luego el otro si tiene key.
     gemini_candidate = ("gemini", gemini_model)
-    groq_candidate = ("groq", groq_model)
+    groq_primary = ("groq", groq_model)
+    groq_fallback = ("groq", groq_fallback_model) if groq_fallback_model and groq_fallback_model != groq_model else None
+
     if primary_provider == "groq":
-        candidates = [groq_candidate, gemini_candidate]
+        candidates = [groq_primary]
+        if groq_fallback:
+            candidates.append(groq_fallback)
+        candidates.append(gemini_candidate)
     else:
-        candidates = [gemini_candidate, groq_candidate]
+        candidates = [gemini_candidate, groq_primary]
+        if groq_fallback:
+            candidates.append(groq_fallback)
 
     for provider, model in candidates:
         if provider == "gemini":

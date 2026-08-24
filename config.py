@@ -43,9 +43,8 @@ FRED_API_KEY = os.getenv("FRED_API_KEY", "")
 # ═══════════════════════════════════════════════════════
 AI_MODEL = os.getenv("AI_MODEL", "gemini")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-GROQ_MODEL = os.getenv(
-    "GROQ_MODEL", "qwen/qwen3.6-27b"
-)
+GROQ_MODEL = os.getenv("GROQ_MODEL", "groq/compound")
+GROQ_FALLBACK_MODEL = os.getenv("GROQ_FALLBACK_MODEL", "qwen/qwen3.6-27b")
 # MAX_TOKENS: techo de output del LLM. Gemini 2.5 Flash soporta hasta ~65K,
 # pero con thinking interno activado consume tokens invisibles. Subimos a 16K
 # y deshabilitamos thinking en brief_generator.py para que todo el budget

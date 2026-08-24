@@ -189,6 +189,7 @@ def main():
         enable_search=not args.no_search,
         groq_api_key=config.GROQ_API_KEY or "",
         groq_model=config.GROQ_MODEL,
+        groq_fallback_model=config.GROQ_FALLBACK_MODEL,
         groq_max_tokens=groq_max_tokens,
     )
 
