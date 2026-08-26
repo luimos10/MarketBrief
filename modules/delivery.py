@@ -75,7 +75,9 @@ def build_header_subtitle(now_utc: datetime | None = None) -> str:
 
     return (
         f'<span class="header-day">{date_line}</span>'
+        f'<span class="header-sep">·</span>'
         f'<span class="header-session">🔔 Próxima apertura: {session_name}</span>'
+        f'<span class="header-sep">·</span>'
         f'<span class="header-clocks">{clocks_line}</span>'
     )
 
@@ -97,8 +99,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             --bg:           #0b0f14;
             --surface:      #121821;
             --surface-2:    #18212c;
+            --surface-3:    #1e2a38;
             --border:       #263241;
             --border-soft:  #1b2633;
+            --border-focus: #38bdf8;
 
             /* Text scale */
             --text:         #e6edf3;
@@ -111,284 +115,597 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             --bear:         #fb7185;
             --neutral:      #fbbf24;
 
+            /* Spacing scale */
+            --space-xs:     0.25rem;
+            --space-sm:     0.5rem;
+            --space-md:     1rem;
+            --space-lg:     1.5rem;
+            --space-xl:     2rem;
+            --space-2xl:    3rem;
+
+            --header-height:  auto;
+
+            /* Radius scale */
+            --radius-sm:    4px;
+            --radius-md:    8px;
+            --radius-lg:    12px;
+
+            /* Shadow scale */
+            --shadow-sm:    0 1px 2px rgba(0,0,0,0.3);
+            --shadow-md:    0 4px 12px rgba(0,0,0,0.35);
+            --shadow-lg:    0 8px 24px rgba(0,0,0,0.4);
+
             --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             --font-mono: ui-monospace, "Cascadia Code", "SFMono-Regular", Consolas, monospace;
         }}
+
+        @media (prefers-reduced-motion: reduce) {{
+            *, *::before, *::after {{
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }}
+        }}
+
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+
+        html {{
+            font-size: clamp(14px, 1.2vw, 16px);
+            scroll-behavior: smooth;
+        }}
+
         body {{
             font-family: var(--font-sans);
             background: var(--bg);
             color: var(--text);
-            line-height: 1.65;
-            font-size: 15px;
+            line-height: 1.7;
             -webkit-font-smoothing: antialiased;
-        }}
-
-        /* ─── HEADER ─── */
-        .site-header {{
-            background: var(--surface);
-            border-bottom: 1px solid var(--border);
-            padding: 1.75rem 2rem;
-            text-align: center;
-        }}
-        .header-badge {{
-            display: inline-block;
-            background: var(--surface-2);
-            border: 1px solid var(--border);
-            color: var(--text-muted);
-            font-size: 0.65rem;
-            font-weight: 600;
-            letter-spacing: 2.5px;
-            text-transform: uppercase;
-            padding: 0.2rem 0.7rem;
-            border-radius: 4px;
-            margin-bottom: 0.75rem;
-        }}
-        .header-title {{
-            font-size: 1.35rem;
-            font-weight: 700;
-            color: var(--text);
-            letter-spacing: -0.01em;
-            margin-bottom: 0.4rem;
-        }}
-        .header-date {{
-            color: var(--text-muted);
-            font-size: 0.82rem;
-        }}
-        .header-day {{ display: block; }}
-        .header-session {{
-            display: block;
-            color: var(--text);
-            font-weight: 600;
-            margin-top: 0.15rem;
-        }}
-        .header-clocks {{
-            display: block;
-            color: var(--text-dim);
-            font-size: 0.76rem;
-            font-family: var(--font-mono);
-            margin-top: 0.1rem;
+            text-rendering: optimizeLegibility;
         }}
 
         /* ─── LAYOUT ─── */
         .main-container {{
             max-width: 1080px;
             margin: 0 auto;
-            padding: 2rem;
+            width: 100%;
+            padding: var(--space-xl) var(--space-lg);
+        }}
+
+        /* ─── SECTION CARDS — separación clara entre 1 / 2 / 3 ─── */
+        .section-card {{
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--accent);
+            border-radius: var(--radius-lg);
+            padding: var(--space-xl);
+            margin-bottom: 3.5rem;
+            box-shadow: var(--shadow-sm);
+            transition: border-color 0.15s, box-shadow 0.15s;
+            scroll-margin-top: calc(var(--space-xl) + 60px);
+        }}
+        .section-card:last-child {{ margin-bottom: 0; }}
+        .section-card:hover {{
+            border-color: var(--border-focus);
+            box-shadow: var(--shadow-md);
+        }}
+
+        .section-header {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: var(--space-md);
+            margin-bottom: var(--space-lg);
+            padding-bottom: var(--space-md);
+            border-bottom: 2px solid var(--border-soft);
+            flex-wrap: wrap;
+        }}
+
+        .section-title {{
+            font-size: clamp(1.2rem, 1.8vw, 1.45rem);
+            font-weight: 700;
+            color: var(--text);
+            letter-spacing: -0.015em;
+            margin: 0;
+        }}
+
+        .section-badge {{
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--accent);
+            background: rgba(56, 189, 248, 0.12);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            padding: 0.2rem 0.6rem;
+            border-radius: var(--radius-sm);
+            white-space: nowrap;
+        }}
+
+        .section-content {{
+            font-size: clamp(0.85rem, 0.95vw, 0.92rem);
+            line-height: 1.7;
+            text-align: left;
+        }}
+
+        /* ─── HEADER ─── */
+        .site-header {{
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: var(--space-lg) var(--space-xl);
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow-sm);
+        }}
+        .header-badge {{
+            display: inline-block;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 0.6rem;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            padding: 0.15rem 0.6rem;
+            border-radius: var(--radius-sm);
+            margin-bottom: var(--space-xs);
+        }}
+        .header-title {{
+            font-size: clamp(1.1rem, 1.8vw, 1.3rem);
+            font-weight: 700;
+            color: var(--text);
+            letter-spacing: -0.02em;
+            margin-bottom: var(--space-xs);
+        }}
+        .header-date {{
+            color: var(--text-muted);
+            font-size: clamp(0.72rem, 0.85vw, 0.8rem);
+            line-height: 1.5;
+        }}
+        .header-day {{ display: inline; }}
+        .header-session {{
+            display: inline;
+            color: var(--text);
+            font-weight: 600;
+        }}
+        .header-clocks {{
+            display: inline;
+            color: var(--text-dim);
+            font-size: clamp(0.65rem, 0.8vw, 0.72rem);
+            font-family: var(--font-mono);
+        }}
+        .header-sep {{
+            color: var(--text-dim);
+            margin: 0 0.35em;
         }}
 
         /* ─── DASHBOARD ─── */
-        .dashboard-section {{ margin-bottom: 2.5rem; }}
+        .dashboard-section {{ margin-bottom: 3.5rem; }}
         .dashboard-title {{
-            font-size: 0.7rem;
+            font-size: 0.65rem;
             font-weight: 600;
-            letter-spacing: 1.8px;
+            letter-spacing: 1.5px;
             text-transform: uppercase;
             color: var(--text-muted);
-            margin-bottom: 1rem;
-            padding-bottom: 0.5rem;
+            margin-bottom: var(--space-md);
+            padding-bottom: var(--space-sm);
             border-bottom: 1px solid var(--border);
         }}
         .asset-grid {{
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
-            gap: 0.6rem;
-            margin-bottom: 1.25rem;
+            grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+            gap: var(--space-sm);
+            margin-bottom: var(--space-md);
         }}
+
+        /* ─── ASSET CARDS ─── */
         .asset-card {{
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 0.85rem 0.95rem;
-            transition: border-color 0.15s;
+            border-radius: var(--radius-md);
+            padding: var(--space-md);
+            transition: border-color 0.15s, box-shadow 0.15s;
             cursor: default;
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
         }}
         .asset-card:hover {{
-            border-color: var(--text-dim);
+            border-color: var(--border-focus);
+            box-shadow: var(--shadow-sm);
+        }}
+        .asset-header {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: var(--space-sm);
         }}
         .asset-name {{
             font-size: 0.95rem;
             font-weight: 700;
             letter-spacing: 0.5px;
-            margin-bottom: 0.3rem;
             color: var(--text);
         }}
         .asset-sesgo {{
-            font-size: 0.68rem;
+            font-size: 0.62rem;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.8px;
-            margin-bottom: 0.5rem;
+            white-space: nowrap;
         }}
         .asset-setup {{
-            font-size: 0.65rem;
-            color: var(--text-muted);
-            background: var(--surface-2);
-            padding: 0.1rem 0.45rem;
-            border-radius: 3px;
-            display: inline-block;
-            margin-bottom: 0.6rem;
-            text-transform: capitalize;
+            font-size: 0.6rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            padding: 0.15rem 0.5rem;
+            border-radius: var(--radius-sm);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
         }}
-        .asset-levels {{ font-size: 0.7rem; }}
+        .setup-long {{ background: rgba(52, 211, 153, 0.15); color: var(--bull); }}
+        .setup-short {{ background: rgba(251, 113, 133, 0.15); color: var(--bear); }}
+        .setup-wait {{ background: rgba(251, 191, 36, 0.15); color: var(--neutral); }}
+        .asset-levels-toggle {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: var(--space-xs);
+            padding: var(--space-xs) 0;
+            margin-top: var(--space-xs);
+            color: var(--text-muted);
+            font-size: 0.7rem;
+            cursor: pointer;
+            border-top: 1px solid var(--border-soft);
+            transition: color 0.15s;
+        }}
+        .asset-levels-toggle:hover {{ color: var(--text); }}
+        .asset-levels-toggle .chevron {{
+            flex-shrink: 0;
+            transition: transform 0.2s ease;
+            stroke: var(--text-dim);
+        }}
+        .asset-card.expanded .asset-levels-toggle .chevron {{
+            transform: rotate(180deg);
+        }}
+        .asset-levels {{
+            display: none;
+            flex-direction: column;
+            gap: 0;
+            padding-top: var(--space-xs);
+            border-top: 1px solid var(--border-soft);
+            margin-top: var(--space-xs);
+        }}
+        .asset-card.expanded .asset-levels {{
+            display: flex;
+            animation: slideDown 0.2s ease;
+        }}
+        @keyframes slideDown {{
+            from {{ opacity: 0; transform: translateY(-4px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
+        }}
         .level-row {{
             display: flex;
             justify-content: space-between;
-            padding: 0.12rem 0;
+            padding: var(--space-xs) 0;
             border-bottom: 1px solid var(--border-soft);
+            font-size: 0.72rem;
         }}
         .level-row:last-child {{ border-bottom: none; }}
         .level-row span:first-child {{ color: var(--text-dim); }}
         .level-val {{ font-family: var(--font-mono); font-weight: 500; color: var(--text); }}
-        .level-val.green {{ color: var(--bull); }}
-        .level-val.red {{ color: var(--bear); }}
-        .level-val.muted {{ color: var(--text-muted); }}
+        .level-bull {{ color: var(--bull); }}
+        .level-bear {{ color: var(--bear); }}
+        .level-muted {{ color: var(--text-muted); }}
 
-        .chart-wrapper {{
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 1.1rem 1.25rem;
-        }}
-        .chart-label {{
-            font-size: 0.68rem;
-            font-weight: 600;
-            letter-spacing: 1.8px;
-            text-transform: uppercase;
-            color: var(--text-muted);
-            margin-bottom: 0.75rem;
-        }}
-
-        /* ─── CONTENT ─── */
-        h2 {{
+        /* ─── TYPOGRAPHY INSIDE SECTIONS ─── */
+        .section-content h2,
+        .section-content h3,
+        .section-content h4 {{
+            margin: var(--space-xl) 0 var(--space-md);
             color: var(--text);
-            font-size: 1.05rem;
+            text-align: left;
+        }}
+
+        .section-content .sub-section-title {{
+            font-size: clamp(1.05rem, 1.4vw, 1.25rem);
             font-weight: 700;
-            margin: 2.5rem 0 0.85rem;
-            padding-bottom: 0.45rem;
+            color: var(--accent);
+            margin: var(--space-2xl) 0 var(--space-md) 0;
+            padding-bottom: var(--space-xs);
             border-bottom: 1px solid var(--border);
-            letter-spacing: -0.01em;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: var(--space-xs);
         }}
-        h3 {{
+
+        .section-content h2 {{
+            font-size: clamp(1.1rem, 1.6vw, 1.35rem);
+            font-weight: 700;
+            padding-bottom: var(--space-sm);
+            border-bottom: 2px solid var(--accent);
+            text-align: left;
+        }}
+
+        .section-content h3 {{
+            font-size: clamp(0.95rem, 1.2vw, 1.08rem);
+            font-weight: 600;
             color: var(--text);
-            font-size: 0.92rem;
-            font-weight: 600;
-            margin: 1.5rem 0 0.45rem;
-            letter-spacing: -0.005em;
+            text-align: left;
         }}
-        h4 {{
-            color: var(--text-muted);
-            font-size: 0.85rem;
+
+        .section-content h4 {{
+            font-size: clamp(0.82rem, 0.98vw, 0.9rem);
             font-weight: 600;
-            margin: 0.9rem 0 0.35rem;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin: var(--space-md) 0 var(--space-xs) 0;
+            text-align: left;
         }}
-        p {{ margin: 0.55rem 0; color: var(--text); }}
-        ul, ol {{ padding-left: 1.4rem; margin: 0.45rem 0; }}
-        li {{ margin: 0.25rem 0; }}
-        strong {{ color: var(--text); font-weight: 600; }}
-        em {{ color: var(--text-muted); }}
-        a {{ color: var(--accent); text-decoration: none; }}
-        a:hover {{ text-decoration: underline; }}
-        code {{
+
+        .section-content p {{ margin: var(--space-md) 0; color: var(--text); font-size: clamp(0.85rem, 0.95vw, 0.92rem); line-height: 1.7; text-align: left; }}
+        .section-content ul, .section-content ol {{ padding-left: var(--space-xl); margin: var(--space-md) 0; font-size: clamp(0.85rem, 0.95vw, 0.92rem); line-height: 1.7; text-align: left; }}
+        .section-content li {{ margin: var(--space-sm) 0; }}
+        .section-content strong {{ color: var(--text); font-weight: 600; }}
+        .section-content em {{ color: var(--text-muted); }}
+        .section-content a {{ color: var(--accent); text-decoration: none; }}
+        .section-content a:hover {{ text-decoration: underline; }}
+        .section-content code {{
             background: var(--surface-2);
             padding: 0.1rem 0.35rem;
-            border-radius: 3px;
+            border-radius: var(--radius-sm);
             font-family: var(--font-mono);
-            font-size: 0.82rem;
+            font-size: 0.8em;
             color: var(--text);
             border: 1px solid var(--border);
+        }}
+
+        .section-content blockquote {{
+            border-left: 3px solid var(--accent);
+            padding: var(--space-md);
+            margin: var(--space-lg) 0;
+            background: var(--surface-2);
+            color: var(--text);
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+            text-align: left;
+        }}
+
+        .section-content hr {{
+            border: none;
+            border-top: 1px solid var(--border-soft);
+            margin: var(--space-xl) 0;
         }}
 
         /* ─── TABLES ─── */
-        table {{
+        .table-wrapper {{
+            width: 100%;
+            overflow-x: auto;
+            margin: var(--space-lg) 0;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            background: var(--surface);
+            box-shadow: var(--shadow-sm);
+        }}
+        .section-content table {{
             width: 100%;
             border-collapse: collapse;
-            margin: 1rem 0 1.25rem;
-            font-size: 0.82rem;
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            overflow: hidden;
+            margin: 0;
+            font-size: clamp(0.72rem, 0.88vw, 0.8rem);
+            background: var(--surface);
         }}
-        thead tr {{
-            background: var(--surface-2);
+        .section-content thead {{
+            position: sticky;
+            top: 0;
+            z-index: 2;
         }}
-        th {{
-            padding: 0.55rem 0.7rem;
-            color: var(--text-muted);
-            font-weight: 600;
+        .section-content thead tr {{
+            background: linear-gradient(135deg, var(--surface-2), var(--surface-3));
+            border-bottom: 2px solid var(--accent);
+        }}
+        .section-content th {{
+            padding: var(--space-md) var(--space-md);
+            color: var(--text);
+            font-weight: 700;
             text-transform: uppercase;
-            font-size: 0.68rem;
-            letter-spacing: 0.8px;
-            border-bottom: 1px solid var(--border);
+            font-size: 0.65rem;
+            letter-spacing: 1px;
+            border-bottom: 2px solid var(--accent);
             text-align: center;
+            background: var(--surface-2);
+            white-space: nowrap;
         }}
-        td {{
-            padding: 0.5rem 0.7rem;
+        .section-content td {{
+            padding: var(--space-md) var(--space-md);
             border-bottom: 1px solid var(--border-soft);
             text-align: center;
             color: var(--text);
+            font-weight: 500;
+            white-space: nowrap;
         }}
-        tr:hover td {{ background: rgba(56, 189, 248, 0.05); }}
-        tr:last-child td {{ border-bottom: none; }}
+        .section-content td:first-child {{
+            text-align: left;
+            font-weight: 700;
+            color: var(--accent);
+        }}
+        .section-content tbody tr {{
+            border-bottom: 1px solid var(--border-soft);
+        }}
+        .section-content tbody tr:nth-child(even) {{
+            background: rgba(56, 189, 248, 0.03);
+        }}
+        .section-content tbody tr:hover {{
+            background: rgba(56, 189, 248, 0.08);
+            transition: background 0.15s ease;
+        }}
+        .section-content tr:last-child td {{
+            border-bottom: none;
+        }}
 
-        blockquote {{
-            border-left: 2px solid var(--accent);
-            padding: 0.65rem 1.1rem;
-            margin: 1.15rem 0;
+        /* ─── CHART WRAPPER ─── */
+        .chart-wrapper {{
             background: var(--surface);
-            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: var(--space-md) var(--space-lg);
         }}
-        hr {{
-            border: none;
-            border-top: 1px solid var(--border);
-            margin: 2rem 0;
+        .chart-label {{
+            font-size: 0.62rem;
+            font-weight: 600;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: var(--space-md);
         }}
 
         /* ─── FOOTER ─── */
         .site-footer {{
             text-align: center;
-            padding: 1.5rem 2rem;
+            padding: var(--space-lg) var(--space-lg);
             color: var(--text-dim);
-            font-size: 0.75rem;
+            font-size: clamp(0.7rem, 0.85vw, 0.78rem);
             border-top: 1px solid var(--border);
-            margin-top: 3rem;
+            margin-top: var(--space-2xl);
         }}
 
-        @media (max-width: 640px) {{
-            .main-container {{ padding: 1rem; }}
-            .asset-grid {{ grid-template-columns: repeat(2, 1fr); }}
-            .header-title {{ font-size: 1.1rem; }}
+        /* ─── PAGE LAYOUT (sin sidebar) ─── */
+        .page-wrapper {{
+            min-height: 100vh;
         }}
+
+        .main-content-wrapper {{
+            min-width: 0;
+        }}
+
+        /* Scroll progress indicator in header */
+        .scroll-progress {{
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--bull), var(--accent));
+            border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+            transform-origin: left;
+            transform: scaleX(0);
+            transition: transform 0.1s linear;
+        }}
+
+        /* ─── RESPONSIVE ─── */
+        @media (max-width: 768px) {{
+            .main-container {{ padding: var(--space-lg) var(--space-md); }}
+            .asset-grid {{ grid-template-columns: repeat(2, 1fr); }}
+            .section-card {{ padding: var(--space-md); }}
+            .site-header {{ padding: var(--space-md) var(--space-md); }}
+            .header-title {{ font-size: clamp(1rem, 4vw, 1.15rem); }}
+        }}
+
+        @media (max-width: 480px) {{
+            .asset-grid {{ grid-template-columns: 1fr; }}
+            .section-header {{ flex-direction: column; align-items: flex-start; }}
+            .header-date {{ font-size: 0.7rem; }}
+            .header-clocks {{ font-size: 0.6rem; }}
+        }}
+
         @media print {{
-            :root {{ --accent: #0369a1; }}
-            body {{ background: #fff; color: #1a1a1e; }}
-            .site-header {{ background: #f5f5f7; border-color: #d2d2d7; }}
-            .header-title {{ color: #1a1a1e; }}
-            .header-badge {{ background: #fff; border-color: #d2d2d7; color: #6e6e73; }}
-            h2, h3, h4 {{ color: #1a1a1e; border-color: #d2d2d7; }}
-            th {{ background: #f5f5f7; color: #6e6e73; border-color: #d2d2d7; }}
-            td {{ border-color: #e5e5ea; color: #1a1a1e; }}
-            blockquote {{ background: #f5f5f7; border-left-color: var(--accent); color: #1a1a1e; }}
-            code {{ background: #f5f5f7; color: #1a1a1e; border-color: #d2d2d7; }}
-            .dashboard-section, .site-footer {{ display: none; }}
+            :root {{
+                --accent: #0369a1;
+                --bg: #fff;
+                --surface: #fff;
+                --surface-2: #f5f5f7;
+                --surface-3: #eee;
+                --text: #1a1a1e;
+                --text-muted: #6e6e73;
+                --text-dim: #8e8e93;
+                --border: #d2d2d7;
+                --border-soft: #e5e5ea;
+                --bull: #0a8f3f;
+                --bear: #c71e1e;
+                --neutral: #b87a00;
+            }}
+            .page-wrapper {{ display: block; }}
+            .site-footer, .dashboard-section, .chart-wrapper,
+            .scroll-progress {{ display: none !important; }}
+            .main-content-wrapper {{ max-width: none; }}
+            .main-container {{ max-width: none; padding: 0; }}
+            .site-header {{
+                background: #fff; border-color: #d2d2d7; box-shadow: none;
+                position: static; padding: var(--space-lg) var(--space-lg);
+                border-bottom: 2px solid #1a1a1e;
+                margin-bottom: var(--space-lg);
+            }}
+            .header-title {{ color: #1a1a1e; font-size: 1.3rem; }}
+            .header-badge {{ background: #1a1a1e; border-color: #1a1a1e; color: #fff; }}
+            .header-date {{ color: #6e6e73; }}
+            .section-card {{
+                background: #fff; border: 1px solid #d2d2d7; border-left: 3px solid var(--accent);
+                box-shadow: none; border-radius: 0; margin-bottom: var(--space-lg);
+                page-break-inside: avoid;
+            }}
+            .section-card:hover {{ border-color: #d2d2d7; box-shadow: none; }}
+            .section-header {{ border-bottom-color: #d2d2d7; }}
+            .section-title {{ color: #1a1a1e; }}
+            .section-badge {{ background: #1a1a1e; border-color: #1a1a1e; color: #fff; }}
+            .section-content h2, .section-content h3, .section-content h4 {{ color: #1a1a1e; border-color: #d2d2d7; }}
+            .section-content h2 {{ border-bottom: 2px solid var(--accent); }}
+            .section-content th {{ background: #f5f5f7; color: #6e6e73; border-color: #d2d2d7; }}
+            .section-content td {{ border-color: #e5e5ea; color: #1a1a1e; }}
+            .section-content tbody tr:nth-child(even) {{ background: #f9f9fb; }}
+            .section-content blockquote {{ background: #f5f5f7; border-left-color: var(--accent); color: #1a1a1e; }}
+            .section-content code {{ background: #f5f5f7; color: #1a1a1e; border-color: #d2d2d7; }}
+            .asset-card {{ background: #fff; border-color: #d2d2d7; }}
+            .asset-setup {{ background: #f5f5f7; }}
+            .asset-levels {{ border-top-color: #d2d2d7; }}
+            .level-row {{ border-bottom-color: #e5e5ea; }}
+            .level-bull {{ color: #0a8f3f !important; }}
+            .level-bear {{ color: #c71e1e !important; }}
+            .level-muted {{ color: #8e8e93 !important; }}
+            .setup-long {{ background: #e8f8f0 !important; color: #0a8f3f !important; }}
+            .setup-short {{ background: #fdeaea !important; color: #c71e1e !important; }}
+            .setup-wait {{ background: #fef9e7 !important; color: #b87a00 !important; }}
+            @page {{
+                margin: 2cm 1.5cm;
+                @top-center {{
+                    content: "MarketBrief — Pre-Market Intelligence";
+                    font-size: 0.75rem; color: #999;
+                }}
+                @bottom-center {{
+                    content: counter(page) " / " counter(pages);
+                    font-size: 0.75rem; color: #999;
+                }}
+                @bottom-right {{
+                    content: "Generado: " attr(data-date);
+                    font-size: 0.7rem; color: #999;
+                }}
+            }}
+            .section-card {{ break-inside: avoid; }}
+            h2, h3, h4 {{ break-after: avoid; }}
+            table {{ break-inside: avoid; }}
         }}
     </style>
 </head>
 <body>
-    <header class="site-header">
-        <div class="header-badge">Pre-Market Brief</div>
-        <h1 class="header-title">{report_title}</h1>
-        <div class="header-date">{header_subtitle}</div>
-    </header>
+    <div class="page-wrapper" data-date="{date}">
+        <!-- Main Content -->
+        <main class="main-content-wrapper">
+            <header class="site-header">
+                <div class="header-badge">Pre-Market Brief</div>
+                <h1 class="header-title">{report_title}</h1>
+                <div class="header-date">{header_subtitle}</div>
+                <div class="scroll-progress" id="scrollProgress"></div>
+            </header>
 
-    <div class="main-container">
-        <div class="dashboard-section" id="dashboard"></div>
-        <div class="content">{content}</div>
+            <div class="main-container">
+                <div class="dashboard-section" id="dashboard"></div>
+                <div class="content" id="main-content">{content}</div>
+            </div>
+
+            <footer class="site-footer">
+                Analizado con {ai_label} · MarketBrief Engine · No constituye asesoría financiera
+            </footer>
+        </main>
     </div>
-
-    <footer class="site-footer">
-        Analizado con {ai_label} · MarketBrief Engine · No constituye asesoría financiera
-    </footer>
 
     <script>
     var BRIEF_DATA = {brief_json};
@@ -422,6 +739,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     }}
 
     document.addEventListener('DOMContentLoaded', function() {{
+        // Dividir secciones en cards SIEMPRE (aunque BRIEF_DATA falle) — garantiza separación 1-2-3
+        try {{ wrapSectionsInCards(); }} catch(e) {{ console.error('wrapSectionsInCards', e); }}
+        try {{ initScrollProgress(); }} catch(e) {{}}
+
         // Colorize sesgo keywords in table cells (solo donde aporta)
         var cells = document.querySelectorAll('td');
         for (var i = 0; i < cells.length; i++) {{
@@ -444,24 +765,41 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         var entries = Object.entries(assetsObj);
         var dashboard = document.getElementById('dashboard');
 
-        // Build asset cards (sin barra de acento — borde uniforme)
+        // Build asset cards - interactive with expandible levels
         var cardsHTML = '';
         for (var j = 0; j < entries.length; j++) {{
             var name = entries[j][0];
             var d = entries[j][1];
             var color = sesgColor(d.sesgo);
             var label = sesgLabel(d.sesgo);
+            var setup = (d.setup || 'WAIT').toUpperCase();
+            var setupClass = setup === 'LONG' ? 'setup-long' : (setup === 'SHORT' ? 'setup-short' : 'setup-wait');
+
+            // Build levels HTML
+            var levelsHTML = '';
+            if (d.precio_referencia) levelsHTML += '<div class="level-row"><span>Precio</span><span class="level-val">' + fmtPrice(d.precio_referencia) + '</span></div>';
+            if (d.soporte) levelsHTML += '<div class="level-row"><span>Soporte</span><span class="level-val level-bull">' + fmtPrice(d.soporte) + '</span></div>';
+            if (d.resistencia) levelsHTML += '<div class="level-row"><span>Resistencia</span><span class="level-val level-bear">' + fmtPrice(d.resistencia) + '</span></div>';
+            if (d.invalidacion) levelsHTML += '<div class="level-row"><span>Invalidación</span><span class="level-val level-muted">' + fmtPrice(d.invalidacion) + '</span></div>';
+            if (d.stop) levelsHTML += '<div class="level-row"><span>SL</span><span class="level-val level-bear">' + fmtPrice(d.stop) + '</span></div>';
+            if (d.tp1) levelsHTML += '<div class="level-row"><span>TP1</span><span class="level-val level-bull">' + fmtPrice(d.tp1) + '</span></div>';
+            if (d.tp2) levelsHTML += '<div class="level-row"><span>TP2</span><span class="level-val level-bull">' + fmtPrice(d.tp2) + '</span></div>';
+            if (d.rr) levelsHTML += '<div class="level-row"><span>R:R</span><span class="level-val">' + d.rr + '</span></div>';
+            if (d.probability) levelsHTML += '<div class="level-row"><span>Prob.</span><span class="level-val">' + d.probability + '%</span></div>';
+
             cardsHTML +=
-                '<div class="asset-card">' +
+                '<div class="asset-card" data-asset="' + name + '">' +
+                '<div class="asset-header">' +
                 '<div class="asset-name">' + name + '</div>' +
                 '<div class="asset-sesgo" style="color:' + color + '">' + label + '</div>' +
-                '<div class="asset-setup">' + (d.setup || 'N/A') + '</div>' +
-                '<div class="asset-levels">' +
-                '<div class="level-row"><span>Precio</span><span class="level-val">' + fmtPrice(d.precio_referencia) + '</span></div>' +
-                '<div class="level-row"><span>Soporte</span><span class="level-val green">' + fmtPrice(d.soporte) + '</span></div>' +
-                '<div class="level-row"><span>Resist.</span><span class="level-val red">' + fmtPrice(d.resistencia) + '</span></div>' +
-                '<div class="level-row"><span>Inval.</span><span class="level-val muted">' + fmtPrice(d.invalidacion) + '</span></div>' +
-                '</div></div>';
+                '</div>' +
+                '<div class="asset-setup ' + setupClass + '">' + setup + '</div>' +
+                '<div class="asset-levels-toggle" onclick="toggleAssetLevels(this)">' +
+                '<span>Ver niveles</span>' +
+                '<svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>' +
+                '</div>' +
+                '<div class="asset-levels">' + levelsHTML + '</div>' +
+                '</div>';
         }}
 
         dashboard.innerHTML =
@@ -524,7 +862,144 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             }}
         }});
     }});
-    </script>
+
+    // Section card wrapper - finds major H2s and wraps them + following content into section-cards
+    function wrapSectionsInCards() {{
+        var content = document.getElementById('main-content');
+        if (!content) return;
+
+        var allHeadings = Array.from(content.querySelectorAll('h2'));
+        if (allHeadings.length === 0) return;
+
+        // Demote sub-H2s to H3s so they stay inside their parent section card
+        allHeadings.forEach(function(h2, idx) {{
+            var text = h2.textContent.trim();
+            var isMain = idx === 0 || /^\\d+[.)]/.test(text) || /^Sesgo/i.test(text) || /^Informe/i.test(text);
+            if (!isMain) {{
+                var h3 = document.createElement('h3');
+                h3.className = 'sub-section-title';
+                h3.innerHTML = h2.innerHTML;
+                if (h2.id) h3.id = h2.id;
+                h2.parentNode.replaceChild(h3, h2);
+            }}
+        }});
+
+        // Now wrap remaining main H2s into section cards
+        var mainHeadings = Array.from(content.querySelectorAll('h2'));
+        mainHeadings.forEach(function(h2) {{
+            var card = document.createElement('div');
+            card.className = 'section-card';
+
+            var header = document.createElement('div');
+            header.className = 'section-header';
+
+            var title = document.createElement('h2');
+            title.className = 'section-title';
+
+            var text = h2.textContent.trim();
+            var badgeText = 'SECCIÓN';
+            var match = text.match(/^(\\d+)[.)]\\s*(.+)/);
+            if (match) {{
+                badgeText = 'SECCIÓN ' + match[1];
+                title.textContent = match[2];
+            }} else {{
+                title.textContent = text;
+            }}
+
+            title.id = h2.id || text.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+            var badge = document.createElement('span');
+            badge.className = 'section-badge';
+            badge.textContent = badgeText;
+
+            header.appendChild(title);
+            header.appendChild(badge);
+            card.appendChild(header);
+
+            var sectionContent = document.createElement('div');
+            sectionContent.className = 'section-content';
+
+            var node = h2.nextSibling;
+            while (node && !(node.nodeType === 1 && node.tagName === 'H2')) {{
+                var next = node.nextSibling;
+                sectionContent.appendChild(node);
+                node = next;
+            }}
+
+            card.appendChild(sectionContent);
+            h2.parentNode.insertBefore(card, h2);
+            h2.remove();
+        }});
+    }}
+
+    // Toggle asset levels expand/collapse
+    function toggleAssetLevels(btn) {{
+        var card = btn.closest('.asset-card');
+        if (card) {{
+            card.classList.toggle('expanded');
+        }}
+    }}
+
+    // Scroll progress indicator
+    function initScrollProgress() {{
+        var progressBar = document.getElementById('scrollProgress');
+        if (!progressBar) return;
+
+        window.addEventListener('scroll', function() {{
+            var scrollTop = window.scrollY;
+            var docHeight = document.documentElement.scrollHeight - window.innerHeight;
+            var progress = docHeight > 0 ? scrollTop / docHeight : 0;
+            progressBar.style.transform = 'scaleX(' + Math.min(1, Math.max(0, progress)) + ')';
+        }}, {{ passive: true }});
+    }}
+
+    // Keyboard shortcuts
+    function initKeyboardShortcuts() {{
+        var cards = Array.from(document.querySelectorAll('.section-card'));
+        var currentIndex = -1;
+
+        document.addEventListener('keydown', function(e) {{
+            // Ignore if typing in input
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            switch (e.key.toLowerCase()) {{
+                case 'n': // Next section
+                    e.preventDefault();
+                    if (currentIndex < cards.length - 1) {{
+                        currentIndex++;
+                        cards[currentIndex].scrollIntoView({{ behavior: 'smooth', block: 'start' }});
+                    }}
+                    break;
+                case 'p': // Previous section
+                    e.preventDefault();
+                    if (currentIndex > 0) {{
+                        currentIndex--;
+                        cards[currentIndex].scrollIntoView({{ behavior: 'smooth', block: 'start' }});
+                    }}
+                    break;
+                case 't': // Top
+                    e.preventDefault();
+                    window.scrollTo({{ top: 0, behavior: 'smooth' }});
+                    currentIndex = -1;
+                    break;
+                case 'c': // Collapse/expand all asset cards
+                    e.preventDefault();
+                    var assetCards = document.querySelectorAll('.asset-card');
+                    var anyExpanded = Array.from(assetCards).some(function(c) {{ return c.classList.contains('expanded'); }});
+                    assetCards.forEach(function(card) {{
+                        card.classList.toggle('expanded', !anyExpanded);
+                    }});
+                    break;
+            }}
+        }});
+    }}
+
+    // Initialize all on DOMContentLoaded (sin sidebar)
+    document.addEventListener('DOMContentLoaded', function() {{
+        try {{ initScrollProgress(); }} catch(e) {{}}
+        try {{ initKeyboardShortcuts(); }} catch(e) {{}}
+    }});
+</script>
 </body>
 </html>"""
 
@@ -717,9 +1192,9 @@ def markdown_to_html(md_text: str) -> str:
     html = md_text
 
     # Escapar HTML existente (excepto emojis)
-    html = html.replace("&", "&amp;")
-    html = html.replace("<", "&lt;")
-    html = html.replace(">", "&gt;")
+    html = html.replace("&", "&")
+    html = html.replace("<", "<")
+    html = html.replace(">", ">")
 
     # Headers
     html = re.sub(r"^#### (.+)$", r"<h4>\1</h4>", html, flags=re.MULTILINE)
@@ -740,7 +1215,7 @@ def markdown_to_html(md_text: str) -> str:
     html = re.sub(r"^={3,}$", "<hr>", html, flags=re.MULTILINE)
 
     # Blockquotes
-    html = re.sub(r"^&gt; (.+)$", r"<blockquote>\1</blockquote>",
+    html = re.sub(r"^> (.+)$", r"<blockquote>\1</blockquote>",
                   html, flags=re.MULTILINE)
 
     # Tables (básico)
@@ -767,8 +1242,8 @@ def markdown_to_html(md_text: str) -> str:
             table_lines.append(row)
         else:
             if in_table:
-                new_lines.append("<table><thead>" + table_lines[0] + "</thead><tbody>" +
-                                 "".join(table_lines[1:]) + "</tbody></table>")
+                new_lines.append('<div class="table-wrapper"><table><thead>' + table_lines[0] + "</thead><tbody>" +
+                                 "".join(table_lines[1:]) + "</tbody></table></div>")
                 in_table = False
                 table_lines = []
             # Bullet points
@@ -776,13 +1251,22 @@ def markdown_to_html(md_text: str) -> str:
             if bullet_match:
                 new_lines.append(f"<li>{bullet_match.group(2)}</li>")
             elif stripped:
-                new_lines.append(f"<p>{stripped}</p>")
+                # No envolver headers, blockquotes, tables, hr en <p>
+                if not (stripped.startswith("<h") or
+                        stripped.startswith("<blockquote") or
+                        stripped.startswith("<table") or
+                        stripped.startswith("<hr") or
+                        stripped.startswith("<ul") or
+                        stripped.startswith("<ol")):
+                    new_lines.append(f"<p>{stripped}</p>")
+                else:
+                    new_lines.append(stripped)
             else:
                 new_lines.append("")
 
     if in_table:
-        new_lines.append("<table><thead>" + table_lines[0] + "</thead><tbody>" +
-                         "".join(table_lines[1:]) + "</tbody></table>")
+        new_lines.append('<div class="table-wrapper"><table><thead>' + table_lines[0] + "</thead><tbody>" +
+                         "".join(table_lines[1:]) + "</tbody></table></div>")
 
     html = "\n".join(new_lines)
 
