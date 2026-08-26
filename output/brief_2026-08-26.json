@@ -2,62 +2,62 @@
   "fecha": "2026-08-26",
   "prompt_version": "v1.4",
   "ai_model": "gemini",
-  "sesgo_global": "Neutral",
-  "mercado_lider": "Mixto",
+  "sesgo_global": "Alcista",
+  "mercado_lider": "Gold",
   "principales": {
     "BTC": {
       "sesgo": "Neutral",
-      "precio_referencia": 78341.43,
-      "soporte": 77851.0,
-      "resistencia": 79563.71,
-      "invalidacion": 77074.93,
+      "precio_referencia": 78889.99,
+      "soporte": 77867.4,
+      "resistencia": 79251.6,
+      "invalidacion": 77632.58,
       "setup": "none"
     },
     "SP500": {
-      "sesgo": "Neutral",
-      "precio_referencia": 7683.25,
-      "soporte": 7655.0,
+      "sesgo": "Alcista",
+      "precio_referencia": 7734.0,
+      "soporte": 7687.9,
       "resistencia": 7746.5,
-      "invalidacion": 7600.0,
-      "setup": "none"
+      "invalidacion": 7655.0,
+      "setup": "continuacion"
     },
     "NASDAQ": {
-      "sesgo": "Neutral",
-      "precio_referencia": 29175.0,
-      "soporte": 28946.75,
+      "sesgo": "Alcista",
+      "precio_referencia": 29589.75,
+      "soporte": 29440.2,
       "resistencia": 29689.75,
-      "invalidacion": 28800.0,
-      "setup": "none"
+      "invalidacion": 28946.75,
+      "setup": "continuacion"
     },
     "GOLD": {
       "sesgo": "Alcista",
-      "precio_referencia": 4679.7,
-      "soporte": 4650.0,
-      "resistencia": 4730.9,
+      "precio_referencia": 4675.2,
+      "soporte": 4673.76,
+      "resistencia": 4675.2,
       "invalidacion": 4600.0,
       "setup": "continuacion"
     },
     "OIL": {
-      "sesgo": "Bajista",
-      "precio_referencia": 80.25,
-      "soporte": 79.62,
-      "resistencia": 81.47,
-      "invalidacion": 82.0,
-      "setup": "continuacion"
+      "sesgo": "Neutral",
+      "precio_referencia": 81.85,
+      "soporte": 81.53,
+      "resistencia": 89.0,
+      "invalidacion": 80.23,
+      "setup": "none"
     }
   },
   "macro_context": {
     "DXY": {
       "sesgo": "Neutral",
-      "nivel": 99.034
+      "nivel": 99.134
     },
     "VIX": {
       "sesgo": "Bajista",
-      "nivel": 15.68
+      "nivel": 15.21
     },
     "US10Y": {
       "sesgo": "Neutral",
-      "nivel": 4.649
+      "nivel": 4.664
     }
   }
 }
