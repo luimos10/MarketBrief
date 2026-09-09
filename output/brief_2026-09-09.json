@@ -2,62 +2,62 @@
   "fecha": "2026-09-09",
   "prompt_version": "v1.4",
   "ai_model": "gemini",
-  "sesgo_global": "Alcista",
+  "sesgo_global": "Neutral",
   "mercado_lider": "Oil",
   "principales": {
     "BTC": {
       "sesgo": "Neutral",
-      "precio_referencia": 79202.11,
-      "soporte": 77620.01,
-      "resistencia": 79370.01,
-      "invalidacion": 78400,
+      "precio_referencia": 79532.24,
+      "soporte": 78455.8,
+      "resistencia": 79760.0,
+      "invalidacion": 77620.01,
       "setup": "continuacion"
     },
     "SP500": {
       "sesgo": "Neutral",
-      "precio_referencia": 7689.25,
+      "precio_referencia": 7656.0,
       "soporte": 7618.5,
       "resistencia": 7766.5,
       "invalidacion": 7618.5,
       "setup": "none"
     },
     "NASDAQ": {
-      "sesgo": "Alcista",
-      "precio_referencia": 29625.25,
-      "soporte": 29453.24,
+      "sesgo": "Neutral",
+      "precio_referencia": 29401.5,
+      "soporte": 28927.25,
       "resistencia": 29764.75,
-      "invalidacion": 29200,
-      "setup": "continuacion"
+      "invalidacion": 28927.25,
+      "setup": "none"
     },
     "GOLD": {
       "sesgo": "Neutral",
-      "precio_referencia": 4443.6,
-      "soporte": 4424.92,
+      "precio_referencia": 4440.8999,
+      "soporte": 4424.66,
       "resistencia": 4510.0,
-      "invalidacion": 4390,
-      "setup": "none"
+      "invalidacion": 4292.2,
+      "setup": "continuacion"
     },
     "OIL": {
       "sesgo": "Alcista",
-      "precio_referencia": 94.19,
-      "soporte": 93.3,
-      "resistencia": 94.78,
-      "invalidacion": 92.0,
+      "precio_referencia": 95.76,
+      "soporte": 93.6693,
+      "resistencia": 95.98,
+      "invalidacion": 93.0,
       "setup": "continuacion"
     }
   },
   "macro_context": {
     "DXY": {
       "sesgo": "Bajista",
-      "nivel": 98.648
+      "nivel": 98.683
     },
     "VIX": {
       "sesgo": "Neutral",
-      "nivel": 15.72
+      "nivel": 16.33
     },
     "US10Y": {
       "sesgo": "Alcista",
-      "nivel": 4.806
+      "nivel": 4.81
     }
   }
 }
