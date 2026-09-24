@@ -3,57 +3,57 @@
   "prompt_version": "v1.4",
   "ai_model": "gemini",
   "sesgo_global": "Alcista",
-  "mercado_lider": "BTC",
+  "mercado_lider": "Nasdaq",
   "principales": {
     "BTC": {
       "sesgo": "Alcista",
-      "precio_referencia": 84216.01,
-      "soporte": 83996.0,
-      "resistencia": 84565.2,
-      "invalidacion": 83500.0,
+      "precio_referencia": 83620.0,
+      "soporte": 82874.93,
+      "resistencia": 85940.32,
+      "invalidacion": 80315.15,
       "setup": "continuacion"
     },
     "SP500": {
       "sesgo": "Alcista",
-      "precio_referencia": 7742.75,
-      "soporte": 7700.0,
+      "precio_referencia": 7730.25,
+      "soporte": 7625.25,
       "resistencia": 7848.5,
-      "invalidacion": 7625.25,
+      "invalidacion": 7698.23,
       "setup": "continuacion"
     },
     "NASDAQ": {
       "sesgo": "Alcista",
-      "precio_referencia": 30591.5,
-      "soporte": 30500.0,
+      "precio_referencia": 30460.5,
+      "soporte": 29352.75,
       "resistencia": 31094.75,
-      "invalidacion": 29352.75,
+      "invalidacion": 29807.48,
       "setup": "continuacion"
     },
     "GOLD": {
       "sesgo": "Neutral",
-      "precio_referencia": 4318.7998,
-      "soporte": 4273.2998,
-      "resistencia": 4345.1513,
-      "invalidacion": 4402.0589,
+      "precio_referencia": 4307.7,
+      "soporte": 4273.29,
+      "resistencia": 4400.97,
+      "invalidacion": 4345.03,
       "setup": "none"
     },
     "OIL": {
       "sesgo": "Neutral",
-      "precio_referencia": 92.33,
-      "soporte": 91.5,
-      "resistencia": 94.39,
-      "invalidacion": 88.71,
-      "setup": "none"
+      "precio_referencia": 93.84,
+      "soporte": 88.71,
+      "resistencia": 94.53,
+      "invalidacion": 92.28,
+      "setup": "reversion"
     }
   },
   "macro_context": {
     "DXY": {
       "sesgo": "Alcista",
-      "nivel": 101.101
+      "nivel": 101.28
     },
     "VIX": {
-      "sesgo": "Muy bajista",
-      "nivel": 15.18
+      "sesgo": "Bajista",
+      "nivel": 15.94
     },
     "US10Y": {
       "sesgo": "Muy alcista",
