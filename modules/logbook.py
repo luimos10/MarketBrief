@@ -139,6 +139,146 @@ def _label_to_sesgo(label: str) -> str:
     return "Neutral"
 
 
+# ═══════════════════════════════════════════════════════
+# NORMALIZACIÓN AL ESQUEMA RICO (Prompt Maestro .md)
+# ═══════════════════════════════════════════════════════
+
+# Claves JSON (alias) por tier. Tier P = principales, M = macro context,
+# W = watchlist. Se usan para ordenar/etiquetar en el dashboard/eval.
+_ASSET_TIER = {
+    "BTC": "P", "SP500": "P", "NASDAQ": "P", "GOLD": "P", "OIL": "P",
+    "DXY": "M", "VIX": "M", "US10Y": "M", "US02Y": "M",
+    "ETH": "W", "SOL": "W", "SILVER": "W",
+}
+
+# Alias legacy -> nombre de ticker interno (snapshot) para evaluación.
+_LEGACY_TO_INTERNAL = {
+    "BTC": "BTCUSDT", "ETH": "ETHUSDT", "SOL": "SOLUSDT",
+    "SP500": "S&P 500 (ES)", "NASDAQ": "Nasdaq 100 (NQ)",
+    "GOLD": "Gold (XAUUSD)", "SILVER": "Silver (XAGUSD)",
+    "OIL": "Crude Oil (WTI)", "DXY": "DXY", "VIX": "VIX",
+    "US10Y": "US10Y", "US02Y": "US02Y",
+}
+
+
+def _decision_from(setup: str | None) -> str:
+    """Mapea setup legacy (continuacion/reversion/sweep/none) a decisión de trading."""
+    s = (setup or "").lower()
+    if s == "continuacion":
+        return "LONG"
+    if s == "reversion":
+        return "SHORT"
+    if s == "none" or not s:
+        return "WAIT"
+    return "WAIT"
+
+
+def normalize_structured(structured: dict | None) -> dict | None:
+    """
+    Convierte cualquier esquema del logbook al esquema RICO canónico
+    (el del Prompt Maestro .md): {report, regime, aggregate, assets, ...}.
+
+    Acepta:
+      - Ricoh (nuevo): structured["assets"]  → se devuelve enriquecido.
+      - Legacy v1.4: structured["principales"] + ["macro_context"], o
+        v1.3: structured["activos"].
+    Retorna None si no hay nada que normalizar (structured vacío).
+    """
+    if not structured:
+        return None
+
+    if structured.get("assets"):
+        rich = dict(structured)
+        if not rich.get("report"):
+            rich["report"] = {
+                "date": structured.get("fecha", ""),
+                "market_bias": structured.get("sesgo_global", ""),
+                "market_leader": structured.get("mercado_lider", ""),
+                "model": structured.get("ai_model", ""),
+                "prompt_version": structured.get("prompt_version", ""),
+            }
+        rich["_schema"] = "rich"
+        return rich
+
+    source = (structured.get("principales") or structured.get("activos") or {})
+    if not source:
+        return None
+
+    assets = {}
+    for alias, d in source.items():
+        if not isinstance(d, dict):
+            continue
+        tier = _ASSET_TIER.get(alias, "W")
+        entry = {
+            "tier": tier,
+            "price": d.get("precio_referencia"),
+            "bias": d.get("sesgo"),
+            "confidence": d.get("confidence"),
+            "signal_quality": d.get("signal_quality", ""),
+            "decision": _decision_from(d.get("setup")),
+            "entry": d.get("soporte") or d.get("entry"),
+            "stop": d.get("invalidacion") or d.get("stop"),
+            "tp1": d.get("tp1"),
+            "tp2": d.get("tp2"),
+            "rr": d.get("rr"),
+            "probability": d.get("probability"),
+            "ev_r": d.get("ev_r"),
+        }
+        # Preservar campos legacy por compatibilidad con el dashboard.
+        for legacy_key in ("soporte", "resistencia", "invalidacion", "setup",
+                           "_synthetic_source", "precio_referencia"):
+            if legacy_key in d:
+                entry[legacy_key] = d[legacy_key]
+        assets[alias] = entry
+
+    # Macro context legacy suelta -> pasa como assets tier M.
+    for alias, d in (structured.get("macro_context") or {}).items():
+        if not isinstance(d, dict) or alias in assets:
+            continue
+        assets[alias] = {
+            "tier": _ASSET_TIER.get(alias, "M"),
+            "price": d.get("nivel") or d.get("price"),
+            "bias": d.get("sesgo"),
+            "decision": d.get("decision", "WAIT"),
+            "entry": d.get("entry"), "stop": d.get("stop"),
+            "tp1": d.get("tp1"), "tp2": d.get("tp2"),
+            "rr": d.get("rr"), "probability": d.get("probability"),
+            "ev_r": d.get("ev_r"),
+        }
+
+    return {
+        "report": {
+            "date": structured.get("fecha", ""),
+            "market_bias": structured.get("sesgo_global", ""),
+            "market_leader": structured.get("mercado_lider", ""),
+            "model": structured.get("ai_model", ""),
+            "prompt_version": structured.get("prompt_version", ""),
+        },
+        "regime": structured.get("regime") if structured.get("regime") else None,
+        "aggregate": structured.get("aggregate"),
+        "assets": assets,
+        "intermarket": structured.get("intermarket"),
+        "catalysts": structured.get("catalysts", []),
+        "risks": structured.get("risks", []),
+        "best_setup": structured.get("best_setup"),
+        "no_trade_conditions": structured.get("no_trade_conditions", []),
+        "_schema": "rich",
+        "_note": structured.get("_note", ""),
+    }
+
+
+def _bias_to_entry(b: dict | None, precio: float) -> dict:
+    """Crea una entrada del esquema rico desde un bias engine."""
+    sesgo = _label_to_sesgo(b.get("label", "")) if b else "Neutral"
+    return {
+        "tier": "P", "price": precio, "bias": sesgo,
+        "confidence": None, "signal_quality": "", "decision": "WAIT",
+        "entry": None, "stop": None, "tp1": None, "tp2": None,
+        "rr": None, "probability": None, "ev_r": None,
+        "_synthetic_source": "bias_engine",
+    }
+
+
 def build_synthetic_structured(market_data: dict, prompt_version: str,
                                ai_model: str) -> dict:
     """
@@ -196,41 +336,40 @@ def build_synthetic_structured(market_data: dict, prompt_version: str,
                 leader = (json_key, int(b["score"]))
     mercado_lider = leader[0] if leader else "Mixto"
 
-    # Bloque principales (5 fijos)
-    principales = {}
-    for internal_key, json_key in _PRINCIPAL_KEYS:
-        b = _bias_for(internal_key)
-        precio = _price_for(internal_key)
-        sesgo = _label_to_sesgo(b.get("label", "")) if b else "Neutral"
-        principales[json_key] = {
-            "sesgo": sesgo,
-            "precio_referencia": precio,
-            "soporte": 0,
-            "resistencia": 0,
-            "invalidacion": 0,
-            "setup": "none",
-            "_synthetic_source": "bias_engine",
-        }
+    # Todos los activos con bias calculado (principales + macro + watchlist)
+    assets = {}
+    asset_aliases = list(_PRINCIPAL_KEYS) + list(_MACRO_CONTEXT_KEYS)
+    for internal_key, json_key in [
+        ("ETHUSDT", "ETH"), ("SOLUSDT", "SOL"),
+        ("Silver (XAGUSD)", "SILVER"),
+    ]:
+        if (bias_root.get("crypto") or bias_root.get("traditional") or {}).get(internal_key):
+            asset_aliases.append((internal_key, json_key))
 
-    # Bloque macro_context (3 referencias)
-    macro_context = {}
-    for internal_key, json_key in _MACRO_CONTEXT_KEYS:
+    for internal_key, json_key in asset_aliases:
         b = _bias_for(internal_key)
         precio = _price_for(internal_key)
-        sesgo = _label_to_sesgo(b.get("label", "")) if b else "Neutral"
-        macro_context[json_key] = {
-            "sesgo": sesgo,
-            "nivel": precio,
-        }
+        entry = _bias_to_entry(b, precio)
+        entry["tier"] = _ASSET_TIER.get(json_key, entry["tier"])
+        assets[json_key] = entry
 
     return {
-        "fecha": date.today().isoformat(),
-        "prompt_version": prompt_version,
-        "ai_model": ai_model,
-        "sesgo_global": sesgo_global,
-        "mercado_lider": mercado_lider,
-        "principales": principales,
-        "macro_context": macro_context,
+        "report": {
+            "date": date.today().isoformat(),
+            "market_bias": sesgo_global,
+            "market_leader": mercado_lider,
+            "model": ai_model,
+            "prompt_version": prompt_version,
+        },
+        "regime": None,
+        "aggregate": {"main_assets_average_bias": None, "decision": ""},
+        "assets": assets,
+        "intermarket": None,
+        "catalysts": [],
+        "risks": [],
+        "best_setup": None,
+        "no_trade_conditions": [],
+        "_schema": "rich",
         "_note": "JSON sintetizado por brief.py — el LLM no produjo el bloque estructurado",
     }
 

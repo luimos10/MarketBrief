@@ -5,7 +5,6 @@
 ╚══════════════════════════════════════════════════════╝
 """
 
-import requests
 import logging
 import time
 
@@ -19,7 +18,7 @@ def generate_brief(
     system_prompt: str,
     user_prompt: str,
     api_key: str,
-    model: str = "gemini-2.0-flash",
+    model: str = "gemini-3.8-flash",
     max_tokens: int = 8000,
     enable_search: bool = True,
     max_retries: int = 3,
@@ -61,9 +60,11 @@ def generate_brief(
                 tools=tools,
             )
             try:
-                # Si el SDK soporta ThinkingConfig y el modelo es 2.5+,
-                # apagar el thinking interno (libera ~3K tokens útiles).
-                if "2.5" in model and hasattr(types, "ThinkingConfig"):
+                # Si el SDK soporta ThinkingConfig, apagar el thinking interno
+                # (libera ~3K tokens útiles) para cualquier modelo Flash/Lite/Flex.
+                if hasattr(types, "ThinkingConfig") and any(
+                    k in model for k in ("2.5", "3.0", "3.5", "flash", "lite", "flex")
+                ):
                     generation_config_kwargs["thinking_config"] = (
                         types.ThinkingConfig(thinking_budget=0)
                     )
@@ -121,6 +122,14 @@ def generate_brief(
                 or "ReadTimeout" in err_str
                 or "RemoteDisconnected" in err_str
             )
+            if tools is not None and "RESOURCE_EXHAUSTED" in err_str:
+                logger.warning(
+                    f"Gemini con Google Search falló por cuota ({e}). "
+                    f"Reintentando inmediatamente sin Google Search Grounding..."
+                )
+                tools = None
+                continue
+
             if transient and attempt < max_retries:
                 wait_seconds = attempt * 3
                 logger.warning(
@@ -136,127 +145,67 @@ def generate_brief(
 
 
 # ═══════════════════════════════════════════════════════
-# GROQ: Generación de brief (Groq API)
+# FALLBACK ENTRE MODELOS GEMINI
 # ═══════════════════════════════════════════════════════
 
-
-def generate_brief_groq(
-    system_prompt: str,
-    user_prompt: str,
-    api_key: str,
-    model: str = "qwen/qwen3.6-27b",
-    max_tokens: int = 8000,
-    max_retries: int = 3,
-) -> str:
-    """
-    Genera el briefing usando Groq.
-
-    Args:
-        system_prompt: Instrucciones del sistema para el modelo
-        user_prompt: El prompt completo con datos + template
-        api_key: API key de Groq
-        model: Modelo a usar (por defecto qwen/qwen3.6-27b)
-        max_tokens: Tokens máximos de respuesta
-        max_retries: Reintentos ante errores transitorios
-
-    Returns:
-        El briefing generado en formato Markdown
-    """
-    url = "https://api.groq.com/openai/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-    }
-    payload = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        "max_tokens": max_tokens,
-        "temperature": 0.3,
-    }
-    if model.startswith("qwen/"):
-        # Qwen otherwise returns its internal reasoning in the brief body.
-        payload["reasoning_effort"] = "none"
-    for attempt in range(1, max_retries + 1):
-        try:
-            response = requests.post(url, headers=headers,
-                                     json=payload, timeout=60)
-            response.raise_for_status()
-            data = response.json()
-            return data["choices"][0]["message"]["content"].strip()
-        except Exception as e:
-            status_code = getattr(getattr(e, "response", None), "status_code", None)
-            transient = status_code in {429, 500, 502, 503, 504}
-            if transient and attempt < max_retries:
-                wait_seconds = attempt * 3
-                logger.warning(
-                    f"Groq devolvió un error transitorio ({e}). "
-                    f"Reintentando en {wait_seconds}s "
-                    f"({attempt}/{max_retries})..."
-                )
-                time.sleep(wait_seconds)
-                continue
-
-            logger.error(f"Error llamando a Groq: {e}")
-            return f"ERROR: {e}"
-
-
-# ═══════════════════════════════════════════════════════
-# FALLBACK ENTRE PROVEEDORES (Gemini → Groq)
-# ═══════════════════════════════════════════════════════
+# Espera entre pasadas completas de la cadena (si la cuota por minuto
+# agota todos los modelos, la segunda pasada da tiempo a que se libere).
+_CHAIN_PASS_WAIT_S = 60
 
 
 def generate_brief_with_fallback(
     system_prompt: str,
     user_prompt: str,
     *,
-    primary_provider: str = "gemini",
     gemini_api_key: str = "",
-    gemini_model: str = "gemini-2.5-flash",
-    gemini_max_tokens: int = 16000,
+    gemini_model: str = "gemini-3.8-flash",
+    gemini_fallback_models: list[str] | None = None,
+    gemini_max_tokens: int = 32768,
     enable_search: bool = True,
-    groq_api_key: str = "",
-    groq_model: str = "groq/compound",
-    groq_fallback_model: str = "qwen/qwen3.6-27b",
-    groq_max_tokens: int = 8192,
+    max_chain_passes: int = 2,
 ) -> tuple[str | None, str | None, str | None]:
     """
-    Genera el brief con una cadena de fallback entre proveedores y modelos.
-
-    Intenta primero el proveedor/modelo primario y, si falla (tras sus reintentos
-    internos), cae a los modelos secundarios en la cadena de fallback SI la API
-    key correspondiente está disponible.
+    Genera el brief con fallback SOLO entre modelos Gemini (misma API key).
 
     Cadena por defecto:
-    1. Gemini (gemini-2.5-flash)
-    2. Groq (groq/compound)
-    3. Groq (qwen/qwen3.6-27b)
+    1. gemini-3.8-flash (primario)
+    2. gemini-3.5-flash-lite (fallback)
+
+    Condiciones para saltar al siguiente modelo (o a la siguiente pasada):
+    - Errores transitorios (429/5xx) tras agotar los reintentos internos
+    - 429 con Google Search Grounding (reintenta sin search; si vuelve a
+      fallar, se pasa al siguiente modelo)
+    - Respuesta vacía o "ERROR: ..." (safety block, 4xx, parseo)
+
+    Si TODA la cadena falla en una pasada, espera ~60s y la repite
+    (max_chain_passes veces) para dar tiempo a liberar cuota por minuto.
 
     Returns:
-        (brief_text, provider_usado, modelo_usado) si algún proveedor responde;
+        (brief_text, "gemini", modelo_usado) si algún modelo responde;
         (None, None, None) si todos fallan.
     """
-    gemini_candidate = ("gemini", gemini_model)
-    groq_primary = ("groq", groq_model)
-    groq_fallback = ("groq", groq_fallback_model) if groq_fallback_model and groq_fallback_model != groq_model else None
+    fallbacks = gemini_fallback_models or []
+    candidates: list[str] = []
+    for m in [gemini_model, *fallbacks]:
+        if m and m not in candidates:
+            candidates.append(m)
 
-    if primary_provider == "groq":
-        candidates = [groq_primary]
-        if groq_fallback:
-            candidates.append(groq_fallback)
-        candidates.append(gemini_candidate)
-    else:
-        candidates = [gemini_candidate, groq_primary]
-        if groq_fallback:
-            candidates.append(groq_fallback)
+    if not gemini_api_key:
+        logger.error("✗ GEMINI_API_KEY no configurada — no hay cadena de IA.")
+        return None, None, None
 
-    for provider, model in candidates:
-        if provider == "gemini":
-            if not gemini_api_key:
-                continue
-            logger.info(f"→ Intentando con Gemini ({model})...")
+    passes = max(1, max_chain_passes)
+    for p in range(1, passes + 1):
+        if p > 1:
+            logger.warning(
+                f"⚠ Toda la cadena Gemini falló en la pasada {p - 1}. "
+                f"Esperando {_CHAIN_PASS_WAIT_S}s antes de reintentar "
+                f"(pasada {p}/{passes})..."
+            )
+            time.sleep(_CHAIN_PASS_WAIT_S)
+
+        for model in candidates:
+            logger.info(f"→ Intentando con Gemini ({model}) [pasada {p}/{passes}]...")
             text = generate_brief(
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
@@ -265,25 +214,14 @@ def generate_brief_with_fallback(
                 max_tokens=gemini_max_tokens,
                 enable_search=enable_search,
             )
-        else:
-            if not groq_api_key:
-                continue
-            logger.info(f"→ Intentando con Groq ({model})...")
-            text = generate_brief_groq(
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
-                api_key=groq_api_key,
-                model=model,
-                max_tokens=groq_max_tokens,
+
+            if text and not text.startswith("ERROR"):
+                logger.info(f"✓ Brief generado con gemini ({model})")
+                return text, "gemini", model
+
+            logger.warning(
+                f"✗ gemini ({model}) falló: {text}. Probando siguiente modelo..."
             )
 
-        if text and not text.startswith("ERROR"):
-            logger.info(f"✓ Brief generado con {provider} ({model})")
-            return text, provider, model
-
-        logger.warning(
-            f"✗ {provider} ({model}) falló: {text}. Probando siguiente proveedor..."
-        )
-
-    logger.error("✗ Todos los proveedores de IA fallaron.")
+    logger.error("✗ Todos los modelos Gemini fallaron en todas las pasadas.")
     return None, None, None

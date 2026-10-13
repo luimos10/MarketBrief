@@ -3,7 +3,6 @@ param(
     [string]$RunAt = "09:05",
     [switch]$Telegram,
     [switch]$Both,
-    [switch]$Groq,
     [switch]$NoOpen
 )
 
@@ -24,11 +23,6 @@ if ($Both) {
     $briefArgs += "--telegram"
 } else {
     $briefArgs += "--html"
-}
-
-if ($Groq) {
-    $briefArgs += "--model"
-    $briefArgs += "groq"
 }
 
 if ($NoOpen) {

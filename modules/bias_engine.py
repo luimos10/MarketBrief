@@ -69,8 +69,19 @@ def _momentum_score(ind: dict) -> float:
 
 
 def _volatility_score(ind: dict) -> float:
-    """Volatilidad alta no es alcista/bajista — devuelve 0 (componente informativo)."""
-    return 0.0
+    """Volatilidad alta tiende a favorecer la dirección existente de forma moderada.
+    Usa z-score del precio + drawdown. Peso reducido (informativo) → clamp ±0.3."""
+    try:
+        z = ind.get("z_score_30d")
+        dd = ind.get("max_drawdown_30d_pct")
+        score = 0.0
+        if z is not None:
+            score += max(-0.25, min(0.25, z / 2.5))  # z ±2.5 → ±0.25
+        if dd is not None and dd < -3:
+            score -= 0.1  # drawdown pronunciado → leve sesgo bajista
+        return max(-0.3, min(0.3, score))
+    except Exception:
+        return 0.0
 
 
 def _positioning_score(funding_regime: dict, ls_ratio: float | None) -> float:

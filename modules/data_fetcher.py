@@ -560,11 +560,43 @@ def fetch_correlation_data() -> dict:
                         for i in range(1, len(closes))
                     ]
                 }
+                # Truncar para reducir tamaño de prompt (evitar 413 / límites)
+                try:
+                    if len(results[name]["retornos_pct"]) > 15:
+                        results[name]["retornos_pct"] = results[name]["retornos_pct"][:15]
+                    if len(results[name]["closes_30d"]) > 16:
+                        results[name]["closes_30d"] = results[name]["closes_30d"][:16]
+                except Exception:
+                    pass
         except Exception as e:
             logger.warning(f"Error en correlación de {name}: {e}")
             results[name] = {"error": str(e)}
 
-    return results
+    # Matriz de correlación Pearson sobre retornos_pct (con NaN/len compatible)
+    try:
+        import numpy as np
+        labels = [k for k, v in results.items() if isinstance(v, dict) and v.get("retornos_pct")]
+        if len(labels) >= 2:
+            mats = []
+            for lbl in labels:
+                r = results[lbl]["retornos_pct"]
+                mats.append(r)
+            minlen = min(len(x) for x in mats)
+            if minlen > 0:
+                A = np.array([x[:minlen] for x in mats], dtype=float)
+                A = np.nan_to_num(A, nan=0.0)
+                corr = np.corrcoef(A)
+                matrix = {}
+                for i, lbl in enumerate(labels):
+                    matrix[lbl] = {labels[j]: round(float(corr[i, j]), 3) for j in range(len(labels))}
+                results["_corr_matrix"] = matrix
+                return results
+        results["_corr_matrix"] = {"error": "insuficientes series para matriz"}
+        return results
+    except Exception as e:
+        logger.warning(f"Error calculando matriz de correlación: {e}")
+        results["_corr_matrix"] = {"error": str(e)}
+        return results
 
 
 # ═══════════════════════════════════════════════════════

@@ -13,7 +13,6 @@ load_dotenv()
 # API KEYS
 # ═══════════════════════════════════════════════════════
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 CMC_API_KEY = os.getenv("CMC_API_KEY")
@@ -35,22 +34,20 @@ PROMPT_VERSION = os.getenv("PROMPT_VERSION", "v1.4")
 FRED_API_KEY = os.getenv("FRED_API_KEY", "")
 
 # ═══════════════════════════════════════════════════════
-# MODELO DE GEMINI
+# MODELOS DE IA (solo Gemini)
 # ═══════════════════════════════════════════════════════
-
-# ═══════════════════════════════════════════════════════
-# MODELOS DE AI
-# ═══════════════════════════════════════════════════════
-AI_MODEL = os.getenv("AI_MODEL", "gemini")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "groq/compound")
-GROQ_FALLBACK_MODEL = os.getenv("GROQ_FALLBACK_MODEL", "qwen/qwen3.6-27b")
-# MAX_TOKENS: techo de output del LLM. Gemini 2.5 Flash soporta hasta ~65K,
-# pero con thinking interno activado consume tokens invisibles. Subimos a 16K
-# y deshabilitamos thinking en brief_generator.py para que todo el budget
-# vaya a la respuesta. Groq mantiene su techo en 8192 (limite del modelo).
-MAX_TOKENS = int(os.getenv("MAX_TOKENS", "16000"))
-GROQ_MAX_TOKENS = int(os.getenv("GROQ_MAX_TOKENS", "8192"))
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+# Fallbacks en orden (separados por coma). Se intentan solo si el modelo
+# primario falla tras sus reintentos internos.
+GEMINI_FALLBACK_MODELS = [
+    m.strip()
+    for m in os.getenv("GEMINI_FALLBACK_MODELS", "gemini-3.5-flash-lite").split(",")
+    if m.strip()
+]
+# MAX_TOKENS: techo de output del LLM. El template Prompt Maestro (v1.4)
+# puede consumir ~16K tokens de salida; 32768 deja margen para evitar
+# truncamiento (finish_reason=MAX_TOKENS).
+MAX_TOKENS = int(os.getenv("MAX_TOKENS", "32768"))
 
 # ═══════════════════════════════════════════════════════
 # ACTIVOS A MONITOREAR (estructura por tiers)
@@ -121,7 +118,7 @@ DELIVERY_METHOD = os.getenv("DELIVERY_METHOD", "html")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_DIR = os.path.join(BASE_DIR, "output")
 LOGS_DIR = os.path.join(BASE_DIR, "logs")
-PROMPT_FILE = os.path.join(BASE_DIR, "prompt_template.txt")
+PROMPT_FILE = os.path.join(BASE_DIR, "Prompt Maestro — Institutional Pre-Market Trading Intelligence Engine.md")
 
 # ═══════════════════════════════════════════════════════
 # TIMEZONE

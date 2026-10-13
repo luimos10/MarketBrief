@@ -1,0 +1,93 @@
+{
+  "generated_at": "2026-10-13T03:23:43.064863+00:00Z",
+  "aggregated": {
+    "overall": {
+      "hit": 761,
+      "miss": 1025,
+      "skip": 52,
+      "calibration": {
+        "probability": 58.5,
+        "actual": 42.6
+      }
+    },
+    "by_asset": {
+      "BTC": {
+        "hit": 22,
+        "miss": 198,
+        "skip": 1
+      },
+      "ETH": {
+        "hit": 19,
+        "miss": 17,
+        "skip": 0
+      },
+      "SOL": {
+        "hit": 22,
+        "miss": 13,
+        "skip": 0
+      },
+      "SP500": {
+        "hit": 171,
+        "miss": 48,
+        "skip": 2
+      },
+      "NASDAQ": {
+        "hit": 152,
+        "miss": 65,
+        "skip": 4
+      },
+      "GOLD": {
+        "hit": 12,
+        "miss": 207,
+        "skip": 2
+      },
+      "OIL": {
+        "hit": 63,
+        "miss": 152,
+        "skip": 5
+      },
+      "SILVER": {
+        "hit": 0,
+        "miss": 30,
+        "skip": 2
+      },
+      "DXY": {
+        "hit": 75,
+        "miss": 117,
+        "skip": 12
+      },
+      "VIX": {
+        "hit": 101,
+        "miss": 101,
+        "skip": 2
+      },
+      "US10Y": {
+        "hit": 124,
+        "miss": 58,
+        "skip": 22
+      },
+      "US02Y": {
+        "hit": 0,
+        "miss": 19,
+        "skip": 0
+      }
+    },
+    "by_version": {
+      "v1.2": {
+        "hit": 33,
+        "miss": 79,
+        "skip": 4
+      },
+      "v1.3": {
+        "hit": 4,
+        "miss": 10,
+        "skip": 0
+      },
+      "v1.4": {
+        "hit": 724,
+        "miss": 936,
+        "skip": 48
+      }
+    }
+  }
+}

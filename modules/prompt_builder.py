@@ -104,11 +104,30 @@ def _append_indicator_lines(sections: list, vals: dict) -> None:
         sections.append("    " + "  ".join(chunk))
 
 
+_NA_TOKENS = {"n/a", "n/d", "na", "none", "null", "", "error", "-"}
+
+
+def _sanitize_node(node):
+    """Convierte 'N/A'/'ERROR'/None en None para que el contexto del LLM
+    nunca muestre marcadores de error como si fueran datos reales."""
+    if isinstance(node, dict):
+        return {k: _sanitize_node(v) for k, v in node.items()}
+    if isinstance(node, list):
+        return [_sanitize_node(x) for x in node]
+    if isinstance(node, str):
+        s = node.strip()
+        if s.lower() in _NA_TOKENS:
+            return None
+        return node
+    return node
+
+
 def format_data_context(data: dict) -> str:
     """
     Formatea los datos recolectados en un bloque de contexto
     legible para Claude.
     """
+    data = _sanitize_node(data)
     sections = []
 
     # ── Header ──
@@ -124,6 +143,8 @@ def format_data_context(data: dict) -> str:
         else:
             lines = [f"  {name}:"]
             for key, val in values.items():
+                if val is None:
+                    continue
                 lines.append(f"    • {key}: {val}")
             sections.append("\n".join(lines))
 
@@ -136,6 +157,8 @@ def format_data_context(data: dict) -> str:
         else:
             lines = [f"  {name}:"]
             for key, val in values.items():
+                if val is None:
+                    continue
                 if key in ("candles_4h_last5", "candles_1d_last5"):
                     lines.append(f"    • {key}: [últimas 5 velas incluidas]")
                     for i, candle in enumerate(val):
@@ -162,6 +185,8 @@ def format_data_context(data: dict) -> str:
         if gm and "error" not in gm:
             sections.append("  Mercado Crypto Global:")
             for key, val in gm.items():
+                if val is None:
+                    continue
                 sections.append(f"    • {key}: {val}")
 
         coins = cmc.get("coins", {})
@@ -169,6 +194,8 @@ def format_data_context(data: dict) -> str:
             for symbol, coin_data in coins.items():
                 lines = [f"  {symbol} (CoinMarketCap):"]
                 for key, val in coin_data.items():
+                    if val is None:
+                        continue
                     lines.append(f"    • {key}: {val}")
                 sections.append("\n".join(lines))
 
@@ -184,6 +211,17 @@ def format_data_context(data: dict) -> str:
                 f"  {name}: {len(retornos)} retornos diarios disponibles")
             if retornos:
                 sections.append(f"    Retornos: {retornos}")
+    # Matriz de correlación
+    cm = data.get("correlation_data", {}).get("_corr_matrix") or {}
+    if cm and "error" not in cm:
+        sections.append("\n  Matriz de correlación (Pearson, 30d, retornos):")
+        labels = sorted(cm.keys())
+        if labels:
+            sections.append("    " + " ".join(f"{l:5s}" for l in labels))
+            for lbl in labels:
+                row = cm[lbl]
+                vals = " ".join(f"{row.get(l,1.0):5.2f}" for l in labels)
+                sections.append(f"    {lbl:5s} {vals}")
 
     # ── Zonas de Liquidación (proxy) ──
     liq = data.get("liquidation_zones", {})
@@ -266,6 +304,33 @@ def format_data_context(data: dict) -> str:
                 comp_str = ", ".join(f"{k}={v:+.2f}" for k, v in comps.items())
                 sections.append(
                     f"  {asset}: {b['score']:+d} ({b['label']})  | {comp_str}")
+
+    # ── MÉTRICAS ADICIONALES (B2) ──
+    try:
+        idata = data.get("indicators", {})
+    except Exception:
+        idata = {}
+    crypto_meta = idata.get("crypto", {}) if isinstance(idata, dict) else {}
+    trad_meta = idata.get("traditional", {}) if isinstance(idata, dict) else {}
+    metas = []
+    for m in (crypto_meta, trad_meta):
+        if isinstance(m, dict):
+            metas.extend(m.values())
+    add = {}
+    for m in metas:
+        if isinstance(m, dict):
+            lab = m.get("label") or ""
+            if m.get("vol_realized_30d_pct") is not None:
+                add.setdefault(lab or "UNKNOWN", {})["vol_30d%"] = m.get("vol_realized_30d_pct")
+            if m.get("max_drawdown_30d_pct") is not None:
+                add.setdefault(lab or "UNKNOWN", {})["dd_30d%"] = m.get("max_drawdown_30d_pct")
+            if m.get("z_score_30d") is not None:
+                add.setdefault(lab or "UNKNOWN", {})["z30"] = m.get("z_score_30d")
+    if add:
+        sections.append("\n▸ MÉTRICAS ADICIONALES (30d): z-score, drawdown, volatilidad realizada")
+        sections.append("-" * 40)
+        for k, v in sorted(add.items()):
+            sections.append(f"  {k}: " + ", ".join(f"{kk}={vv}" for kk, vv in v.items()))
 
     # ── TOP 5 PRINCIPALES (orden FIJO — usar para sección 5 del brief) ──
     principales = _compute_principal_assets_summary(data)
@@ -446,7 +511,7 @@ def format_data_context(data: dict) -> str:
     return "\n".join(sections)
 
 
-def build_full_prompt(data: dict, prompt_template: str) -> str:
+def build_full_prompt(data: dict, prompt_template: str, template_path: str = "") -> str:
     """
     Construye el prompt final combinando:
     1. Instrucción del sistema
@@ -463,6 +528,9 @@ def build_full_prompt(data: dict, prompt_template: str) -> str:
     except Exception:
         PROMPT_VERSION = "unknown"
 
+    # Detectar si es el Prompt Maestro (.md) para no duplicar esquema JSON
+    is_maestro = "Prompt Maestro" in template_path or template_path.endswith(".md")
+
     full_prompt = f"""Fecha: {today}
 Versión prompt: {PROMPT_VERSION}
 
@@ -472,7 +540,10 @@ Versión prompt: {PROMPT_VERSION}
 
 ## INSTRUCCIONES DEL BRIEFING
 
-{prompt_template}
+{prompt_template}"""
+
+    if not is_maestro:
+        full_prompt += f"""
 
 ═══════════════════════════════════════════════════════════════════════
 ## ESQUEMA JSON OBLIGATORIO (sección 9 del brief)
@@ -489,7 +560,7 @@ Estructura exacta (sin texto adicional dentro del bloque, sin coma final):
 {{
   "fecha": "YYYY-MM-DD",
   "prompt_version": "{PROMPT_VERSION}",
-  "ai_model": "gemini|groq",
+  "ai_model": "gemini",
   "sesgo_global": "Alcista|Bajista|Neutral",
   "mercado_lider": "BTC|Nasdaq|SP500|Gold|Oil|DXY|VIX|Mixto",
   "principales": {{
@@ -544,8 +615,7 @@ Web search: usar SOLO si la sección "EVENTOS MACRO HOY" está vacía o para
 confirmar máx 1-2 titulares relevantes. NO buscar análisis técnico (ya lo
 tienes pre-calculado).
 
-Español, Markdown limpio.
-"""
+Español, Markdown limpio."""
 
     return full_prompt
 

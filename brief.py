@@ -57,6 +57,18 @@ def setup_logging():
 # MAIN
 # ═══════════════════════════════════════════════════════
 
+
+def _load_perf(output_dir: str) -> dict | None:
+    """Carga output/perf.json (generado por evaluate_calls.py) para el dashboard."""
+    import json
+    path = os.path.join(output_dir, "perf.json")
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+
+
 def main():
     # Parsear argumentos
     parser = argparse.ArgumentParser(description="📊 Market Brief Engine")
@@ -70,7 +82,7 @@ def main():
     parser.add_argument("--no-open", action="store_true",
                         help="No abrir el HTML en el navegador")
     parser.add_argument(
-        "--model", choices=["gemini", "groq"], help="Modelo de AI a usar")
+        "--model", choices=["gemini"], help="Modelo de IA a usar (solo gemini)")
     args = parser.parse_args()
 
     # Setup
@@ -146,51 +158,40 @@ def main():
     logger.info(f"Template: {os.path.basename(chosen_template_path)} "
                 f"(versión {chosen_version})")
     prompt_template = load_prompt_template(chosen_template_path)
-    full_prompt = build_full_prompt(market_data, prompt_template)
+    full_prompt = build_full_prompt(market_data, prompt_template, chosen_template_path)
     system_prompt = get_system_prompt()
 
     logger.info(f"Prompt construido ({len(full_prompt)} caracteres)")
 
-    # ── Elegir modelo de AI ──
+    # ── Validar modelo de IA (solo Gemini) ──
     ai_model = os.getenv("AI_MODEL", "gemini").lower()
-    if hasattr(config, "AI_MODEL"):
-        ai_model = config.AI_MODEL.lower()
-    if hasattr(args, "model") and getattr(args, "model", None):
-        ai_model = args.model.lower()
-
-    if ai_model not in {"gemini", "groq"}:
+    if ai_model != "gemini":
         logger.error(
-            f"✗ AI_MODEL inválido: {ai_model}. Usa 'gemini' o 'groq'.")
+            f"✗ AI_MODEL inválido: {ai_model}. Solo se soporta 'gemini'.")
         sys.exit(1)
 
-    # ── PASO 3: Generar brief con fallback entre proveedores ──
+    # ── PASO 3: Generar brief (cadena de fallback solo-Gemini) ──
     logger.info("")
-    groq_max_tokens = min(config.MAX_TOKENS, config.GROQ_MAX_TOKENS)
-    primary_label = (config.GROQ_MODEL if ai_model == "groq"
-                     else config.GEMINI_MODEL)
+    primary_label = config.GEMINI_MODEL
+    fallbacks_label = ", ".join(config.GEMINI_FALLBACK_MODELS) or "ninguno"
     logger.info(
-        f"━━━ PASO 3/4: Generando brief (primario: {ai_model} / "
-        f"{primary_label}, con fallback) ━━━")
+        f"━━━ PASO 3/4: Generando brief (primario: gemini / "
+        f"{primary_label}, fallback: {fallbacks_label}) ━━━")
 
-    if not config.GEMINI_API_KEY and not config.GROQ_API_KEY:
+    if not config.GEMINI_API_KEY:
         logger.error(
-            "✗ No hay ninguna API key de IA configurada (GEMINI_API_KEY / "
-            "GROQ_API_KEY). Revisa tu .env o los secrets.")
+            "✗ GEMINI_API_KEY no configurada. Revisa tu .env o los secrets.")
         sys.exit(1)
 
     from modules.brief_generator import generate_brief_with_fallback
     brief_text, used_provider, used_model = generate_brief_with_fallback(
         system_prompt=system_prompt,
         user_prompt=full_prompt,
-        primary_provider=ai_model,
         gemini_api_key=config.GEMINI_API_KEY or "",
         gemini_model=config.GEMINI_MODEL,
+        gemini_fallback_models=config.GEMINI_FALLBACK_MODELS,
         gemini_max_tokens=config.MAX_TOKENS,
         enable_search=not args.no_search,
-        groq_api_key=config.GROQ_API_KEY or "",
-        groq_model=config.GROQ_MODEL,
-        groq_fallback_model=config.GROQ_FALLBACK_MODEL,
-        groq_max_tokens=groq_max_tokens,
     )
 
     if not brief_text:
@@ -201,9 +202,19 @@ def main():
         f"Brief generado ({len(brief_text)} caracteres) "
         f"con {used_provider} ({used_model})")
 
+    # ── Reparación post-generación: JSON truncado + Sección 11 (CIERRE) ──
+    # Si el LLM se quedó sin tokens (MAX_TOKENS) puede dejar el bloque
+    # ```json``` sin cerrar y no escribir el cierre (sección 11).
+    repaired_md = _repair_md_json_and_cierre(brief_text)
+    if repaired_md != brief_text:
+        logger.warning(
+            "⚠ Brief truncado/JSON sin cerrar — reparado post-generación "
+            "(bloque ```json``` cerrado y Sección 11 CIERRE asegurada)")
+        brief_text = repaired_md
+
     # ── PASO 3.5: Extraer JSON estructurado + logbook (con fallback sintético) ──
     from modules.logbook import (
-        extract_json_block, strip_json_block_from_md,
+        extract_json_block, strip_json_block_from_md, normalize_structured,
         append_call, save_json_sidecar, build_market_snapshot,
         build_synthetic_structured,
     )
@@ -214,12 +225,17 @@ def main():
 
     if structured:
         logger.info("✓ Bloque JSON estructurado extraído del brief")
+        # Unificar al esquema rico (Prompt Maestro .md) para logbook/dashboard
+        structured = normalize_structured(structured)
         # Limpiar el JSON crudo del MD/HTML entregado al usuario
         brief_text = strip_json_block_from_md(brief_text)
     else:
         logger.warning(
             "⚠ No se encontró bloque JSON en el brief — generando fallback "
             "sintético desde bias_scores para mantener el logbook poblado")
+        # No entregar JSON crudo/partials al usuario (sección 10 va al
+        # logbook/sidecar, no al informe)
+        brief_text = strip_json_block_from_md(brief_text)
         structured = build_synthetic_structured(
             market_data,
             prompt_version=getattr(config, "PROMPT_VERSION", "unknown"),
@@ -251,6 +267,13 @@ def main():
     logger.info("━━━ PASO 4/4: Entregando brief ━━━")
     from modules.delivery import deliver_brief
 
+    is_fallback = used_model != primary_label
+    if is_fallback:
+        logger.warning(
+            f"⚠ Modo de contingencia activo: brief generado con gemini "
+            f"({used_model}) en lugar del primario ({primary_label})"
+        )
+
     delivery_config = {
         "output_dir": config.OUTPUT_DIR,
         "telegram_token": config.TELEGRAM_BOT_TOKEN,
@@ -258,7 +281,11 @@ def main():
         "open_browser": not args.no_open,
         "ai_provider": used_provider,
         "ai_model": used_model,
+        "is_fallback": is_fallback,
+        "primary_label": f"{ai_model}:{primary_label}",
         "prompt_version": getattr(config, "PROMPT_VERSION", ""),
+        "structured": structured,
+        "perf": _load_perf(config.OUTPUT_DIR),
     }
 
     results = deliver_brief(brief_text, delivery_method, delivery_config)
@@ -273,6 +300,113 @@ def main():
     logger.info("")
 
     return 0
+
+
+def _salvage_truncated_json(raw: str) -> str | None:
+    """Intenta rescatar un JSON truncado (MAX_TOKENS) cerrando strings/brackets.
+
+    Estrategia:
+    1. Cerrar string abierto + eliminar coma/2-puntos colgantes + cerrar
+       brackets pendientes según la pila de anidamiento.
+    2. Si falla, probar recortes en los últimos `}`/`]` del texto.
+    Retorna el JSON reparado (str) o None si no es posible.
+    """
+    import json
+
+    s = raw.strip()
+    if not s:
+        return None
+
+    # Estrategia 1: cerrar estructuras abiertas
+    stack = []
+    in_str = False
+    esc = False
+    for ch in s:
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch in "{[":
+            stack.append(ch)
+        elif ch in "}]":
+            if stack:
+                stack.pop()
+
+    candidate = s
+    if in_str:
+        candidate += '"'
+    candidate = candidate.rstrip()
+    while candidate and candidate[-1] in ",:":
+        candidate = candidate[:-1]
+    for ch in reversed(stack):
+        candidate += "}" if ch == "{" else "]"
+    try:
+        json.loads(candidate)
+        return candidate
+    except Exception:
+        pass
+
+    # Estrategia 2: recortar en los últimos cierres de objeto/arreglo
+    positions = [i for i, ch in enumerate(s) if ch in "}]"]
+    for pos in reversed(positions[-80:]):
+        frag = s[: pos + 1]
+        if not frag.strip():
+            continue
+        try:
+            json.loads(frag)
+            return frag
+        except Exception:
+            continue
+    return None
+
+
+def _repair_md_json_and_cierre(md_text, sidecar_structured=None):
+    """Repara bloque JSON sin cerrar y asegura la Sección 11 (CIERRE) en el MD.
+
+    Protege contra truncamiento (finish_reason=MAX_TOKENS): cierra el bloque
+    ```json``` con el JSON válido recuperable y añade la sección de cierre
+    del Prompt Maestro si el modelo no la escribió.
+    """
+    import json
+    import re
+
+    if not md_text:
+        return md_text
+
+    if re.search(r"```json\s*(.*?)\s*```", md_text, re.DOTALL | re.IGNORECASE):
+        text = md_text
+    else:
+        s = md_text.find("```json")
+        if s >= 0:
+            c = md_text[s + 7:]
+            best = None
+            try:
+                dec = json.JSONDecoder()
+                obj, idx = dec.raw_decode(c.strip())
+                best = c[:idx]
+            except Exception:
+                best = _salvage_truncated_json(c)
+            if best is not None:
+                text = md_text[:s] + "```json\n" + best.strip() + "\n```"
+            else:
+                text = md_text[:s] + "```json\n{}\n```"
+        else:
+            text = md_text
+
+    tl = text.lower()
+    if "capital busca liquidez" not in tl and "## 11" not in tl:
+        text = (
+            text.rstrip()
+            + '\n\n## 11. CIERRE\n\n"Capital busca liquidez en estructura antes '
+            'de confirmación de breakout."\n'
+        )
+    return text
 
 
 if __name__ == "__main__":

@@ -279,6 +279,23 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             margin: 0 0.35em;
         }}
 
+        /* ─── FALLBACK BANNER ─── */
+        .fallback-banner {{
+            background: rgba(245, 158, 11, 0.10);
+            border: 1px solid rgba(245, 158, 11, 0.40);
+            border-radius: var(--radius-md);
+            color: #fbbf24;
+            padding: 9px 16px;
+            margin: 14px auto 0 auto;
+            max-width: 700px;
+            font-size: 0.82rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            line-height: 1.4;
+        }}
+        .fallback-banner strong {{ color: #fde68a; }}
+
         /* ─── DASHBOARD ─── */
         .dashboard-section {{ margin-bottom: 3.5rem; }}
         .dashboard-title {{
@@ -296,6 +313,38 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
             gap: var(--space-sm);
             margin-bottom: var(--space-md);
+        }}
+
+        /* ─── PERF (RENDIMIENTO HISTÓRICO) ─── */
+        .perf-summary {{
+            font-size: 0.82rem;
+            color: var(--text-dim);
+            margin: 4px 0 10px 0;
+        }}
+        .perf-summary.sub {{
+            margin-top: -6px;
+            font-size: 0.76rem;
+        }}
+        .perf-summary strong {{ color: #fbbf24; }}
+        .perf-table-scroll {{
+            overflow-x: auto;
+            margin-bottom: var(--space-md);
+        }}
+        .perf-table {{
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.78rem;
+        }}
+        .perf-table th, .perf-table td {{
+            padding: 6px 10px;
+            border-bottom: 1px solid var(--border);
+            text-align: left;
+        }}
+        .perf-table th {{
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 0.65rem;
         }}
 
         /* ─── ASSET CARDS ─── */
@@ -695,7 +744,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 <div class="header-date">{header_subtitle}</div>
                 <div class="scroll-progress" id="scrollProgress"></div>
             </header>
-
+{fallback_banner}
             <div class="main-container">
                 <div class="dashboard-section" id="dashboard"></div>
                 <div class="content" id="main-content">{content}</div>
@@ -709,6 +758,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
     <script>
     var BRIEF_DATA = {brief_json};
+    var PERF_DATA = {perf_json};
 
     /* Paleta dark (debe matchear las CSS vars) */
     var COLOR_BULL = '#34d399';
@@ -757,12 +807,18 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         }}
 
         if (!BRIEF_DATA) return;
-        // v1.4: el schema cambió a {{principales, macro_context}}.
-        // Backward compat: si existe `activos` (v1.3), usarlo.
-        var assetsObj = BRIEF_DATA.principales || BRIEF_DATA.activos;
+        // Esquema rico (Prompt Maestro): assets con tier/entry/stop/tp/rr/ev.
+        // Backward compat: principios (v1.4) o activos (v1.3).
+        var assetsObj = BRIEF_DATA.assets || BRIEF_DATA.principales || BRIEF_DATA.activos;
         if (!assetsObj) return;
 
-        var entries = Object.entries(assetsObj);
+        // Ordenar por tier: P (principales) → M (macro) → W (watchlist)
+        var tierOrder = {{P: 0, M: 1, W: 2}};
+        var entries = Object.entries(assetsObj).sort(function(a, b) {{
+            var ta = tierOrder[a[1].tier] !== undefined ? tierOrder[a[1].tier] : 2;
+            var tb = tierOrder[b[1].tier] !== undefined ? tierOrder[b[1].tier] : 2;
+            return ta - tb;
+        }});
         var dashboard = document.getElementById('dashboard');
 
         // Build asset cards - interactive with expandible levels
@@ -770,22 +826,30 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         for (var j = 0; j < entries.length; j++) {{
             var name = entries[j][0];
             var d = entries[j][1];
-            var color = sesgColor(d.sesgo);
-            var label = sesgLabel(d.sesgo);
-            var setup = (d.setup || 'WAIT').toUpperCase();
+            var color = sesgColor(d.bias || d.sesgo);
+            var label = sesgLabel(d.bias || d.sesgo);
+            var setup = (d.decision || d.setup || 'WAIT').toUpperCase();
             var setupClass = setup === 'LONG' ? 'setup-long' : (setup === 'SHORT' ? 'setup-short' : 'setup-wait');
+            var price = d.price || d.precio_referencia;
+            var entry = d.entry || d.soporte;
+            var stop = d.stop || d.invalidacion;
+            var inval = (d.invalidacion && stop && d.invalidacion !== stop) ? d.invalidacion : null;
 
             // Build levels HTML
             var levelsHTML = '';
-            if (d.precio_referencia) levelsHTML += '<div class="level-row"><span>Precio</span><span class="level-val">' + fmtPrice(d.precio_referencia) + '</span></div>';
-            if (d.soporte) levelsHTML += '<div class="level-row"><span>Soporte</span><span class="level-val level-bull">' + fmtPrice(d.soporte) + '</span></div>';
+            if (price) levelsHTML += '<div class="level-row"><span>Precio</span><span class="level-val">' + fmtPrice(price) + '</span></div>';
+            if (entry && entry !== price) levelsHTML += '<div class="level-row"><span>Entrada</span><span class="level-val level-bull">' + fmtPrice(entry) + '</span></div>';
+            if (d.soporte && entry !== d.soporte) levelsHTML += '<div class="level-row"><span>Soporte</span><span class="level-val level-bull">' + fmtPrice(d.soporte) + '</span></div>';
             if (d.resistencia) levelsHTML += '<div class="level-row"><span>Resistencia</span><span class="level-val level-bear">' + fmtPrice(d.resistencia) + '</span></div>';
-            if (d.invalidacion) levelsHTML += '<div class="level-row"><span>Invalidación</span><span class="level-val level-muted">' + fmtPrice(d.invalidacion) + '</span></div>';
-            if (d.stop) levelsHTML += '<div class="level-row"><span>SL</span><span class="level-val level-bear">' + fmtPrice(d.stop) + '</span></div>';
+            if (stop && stop !== price) levelsHTML += '<div class="level-row"><span>' + (d.stop ? 'SL' : 'Invalidación') + '</span><span class="level-val level-bear">' + fmtPrice(stop) + '</span></div>';
+            if (inval && inval !== price) levelsHTML += '<div class="level-row"><span>Invalidación</span><span class="level-val level-muted">' + fmtPrice(inval) + '</span></div>';
             if (d.tp1) levelsHTML += '<div class="level-row"><span>TP1</span><span class="level-val level-bull">' + fmtPrice(d.tp1) + '</span></div>';
             if (d.tp2) levelsHTML += '<div class="level-row"><span>TP2</span><span class="level-val level-bull">' + fmtPrice(d.tp2) + '</span></div>';
+            if (d.confidence) levelsHTML += '<div class="level-row"><span>Confianza</span><span class="level-val">' + d.confidence + '%</span></div>';
+            if (d.signal_quality) levelsHTML += '<div class="level-row"><span>Calidad</span><span class="level-val">' + d.signal_quality + '</span></div>';
             if (d.rr) levelsHTML += '<div class="level-row"><span>R:R</span><span class="level-val">' + d.rr + '</span></div>';
             if (d.probability) levelsHTML += '<div class="level-row"><span>Prob.</span><span class="level-val">' + d.probability + '%</span></div>';
+            if (d.ev_r) levelsHTML += '<div class="level-row"><span>EV</span><span class="level-val">' + d.ev_r + 'R</span></div>';
 
             cardsHTML +=
                 '<div class="asset-card" data-asset="' + name + '">' +
@@ -861,7 +925,41 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 }}
             }}
         }});
+
+        // ── Rendimiento histórico (C3) ──
+        if (PERF_DATA && PERF_DATA.aggregated) {{ renderPerf(PERF_DATA.aggregated); }}
     }});
+
+    function renderPerf(p) {{
+        var host = document.getElementById('dashboard');
+        if (!host) return;
+        var html = '';
+        html += '<div class="dashboard-title">Rendimiento Histórico (evaluado)</div>';
+        var ov = p.overall || {{}};
+        var total = (ov.hit || 0) + (ov.miss || 0);
+        var rate = total > 0 ? ((ov.hit || 0) / total * 100).toFixed(1) : 'n/a';
+        html += '<div class="perf-summary">Hit rate global: <strong>' + rate + '%</strong> · ' +
+                (ov.hit || 0) + ' hit / ' + (ov.miss || 0) + ' miss / ' + (ov.skip || 0) + ' skip</div>';
+        if (ov.calibration) {{
+            html += '<div class="perf-summary sub">Calibración: ' +
+                    '<strong>' + (ov.calibration.probability || 65) + '%</strong> probabilidad declarada vs ' +
+                    '<strong>' + (ov.calibration.actual || 0) + '%</strong> acierto real</div>';
+        }}
+        if (p.by_asset) {{
+            html += '<div class="perf-table-scroll"><table class="perf-table"><thead><tr>' +
+                    '<th>Activo</th><th>Hit</th><th>Miss</th><th>Rate</th></tr></thead><tbody>';
+            var assets = Object.entries(p.by_asset).sort(function(a, b) {{ return a[0].localeCompare(b[0]); }});
+            for (var i = 0; i < assets.length; i++) {{
+                var nm = assets[i][0]; var st = assets[i][1];
+                var tt = (st.hit || 0) + (st.miss || 0);
+                var rr = tt > 0 ? ((st.hit || 0) / tt * 100).toFixed(0) + '%' : '—';
+                html += '<tr><td>' + nm + '</td><td>' + (st.hit || 0) + '</td><td>' +
+                        (st.miss || 0) + '</td><td>' + rr + '</td></tr>';
+            }}
+            html += '</tbody></table></div>';
+        }}
+        host.insertAdjacentHTML('beforeend', html);
+    }}
 
     // Section card wrapper - finds major H2s and wraps them + following content into section-cards
     function wrapSectionsInCards() {{
@@ -1020,7 +1118,6 @@ def normalize_ai_label(ai_provider: str, ai_model: str) -> str:
     """Normaliza una etiqueta legible de proveedor/modelo."""
     provider_map = {
         "gemini": "Gemini",
-        "groq": "Groq",
     }
     provider_label = provider_map.get((ai_provider or "").lower(),
                                       ai_provider or "IA")
@@ -1112,9 +1209,12 @@ def extract_original_title(brief_text: str) -> str:
 
 
 def decorate_brief(brief_text: str, ai_label: str,
-                   prompt_version: str = "") -> tuple[str, dict]:
+                   prompt_version: str = "",
+                   is_fallback: bool = False,
+                   primary_label: str = "") -> tuple[str, dict]:
     """Inyecta un encabezado corto con sesgo, IA y versión del prompt
-    sin perder el título original."""
+    sin perder el título original.
+    Si is_fallback=True, inserta también un callout de modo de contingencia."""
     bias_title = infer_market_bias(brief_text)
     bias_value = bias_title.replace("Sesgo ", "")
     market_leader = infer_market_leader(brief_text)
@@ -1160,6 +1260,12 @@ def decorate_brief(brief_text: str, ai_label: str,
         if prompt_version:
             header_lines.append(f"**Versión prompt:** {prompt_version}")
         header_lines.append("")
+        if is_fallback and primary_label:
+            header_lines.append(
+                f"> ⚠️ **Modo de contingencia** · Informe generado con "
+                f"**{ai_label}** por indisponibilidad del primario **{primary_label}**."
+            )
+            header_lines.append("")
         lines[insert_at:insert_at] = header_lines
     else:
         base = [
@@ -1172,6 +1278,12 @@ def decorate_brief(brief_text: str, ai_label: str,
         if prompt_version:
             base.append(f"**Versión prompt:** {prompt_version}")
         base.append("")
+        if is_fallback and primary_label:
+            base.append(
+                f"> ⚠️ **Modo de contingencia** · Informe generado con "
+                f"**{ai_label}** por indisponibilidad del primario **{primary_label}**."
+            )
+            base.append("")
         lines = base + lines
 
     decorated_text = "\n".join(lines)
@@ -1282,6 +1394,10 @@ def save_html(
     report_title: str,
     ai_label: str,
     open_browser: bool = True,
+    is_fallback: bool = False,
+    primary_label: str = "",
+    structured: dict | None = None,
+    perf: dict | None = None,
 ) -> str:
     """
     Guarda el brief como HTML y opcionalmente lo abre en el navegador.
@@ -1298,15 +1414,47 @@ def save_html(
     filename = f"brief_{date_str}.html"
     filepath = os.path.join(output_dir, filename)
 
-    brief_json = _extract_brief_json(brief_text)
+    # Banner de contingencia (vacío en ejecución normal)
+    if is_fallback and primary_label:
+        fallback_banner = (
+            f'            <div class="fallback-banner">'
+            f'⚠️ <span><strong>Modo de contingencia</strong> · '
+            f'Generado con <strong>{ai_label}</strong> por '
+            f'indisponibilidad del primario <strong>{primary_label}</strong>.</span>'
+            f'</div>'
+        )
+    else:
+        fallback_banner = ""
+
+    # BRIEF_DATA: priorizar el structured normalizado (esquema rico) para que el
+    # dashboard de sesgo se renderice siempre.
+    if structured:
+        try:
+            brief_json = json.dumps(structured, ensure_ascii=False, default=str)
+        except Exception:
+            brief_json = _extract_brief_json(brief_text)
+    else:
+        brief_json = _extract_brief_json(brief_text)
+
+    # Payload de rendimiento histórico (C3) — opcional, ligero.
+    if perf:
+        try:
+            perf_json = json.dumps(perf, ensure_ascii=False, default=str)
+        except Exception:
+            perf_json = "null"
+    else:
+        perf_json = "null"
+
     html_content = markdown_to_html(brief_text)
     full_html = HTML_TEMPLATE.format(
         date=tab_date,
         header_subtitle=header_subtitle,
+        fallback_banner=fallback_banner,
         content=html_content,
         report_title=report_title,
         ai_label=ai_label,
         brief_json=brief_json,
+        perf_json=perf_json,
     )
 
     os.makedirs(output_dir, exist_ok=True)
@@ -1389,6 +1537,8 @@ def deliver_brief(brief_text: str, method: str, config: dict) -> dict:
         Dict con resultados de cada delivery
     """
     results = {}
+    is_fallback = config.get("is_fallback", False)
+    primary_label = config.get("primary_label", "")
     ai_label = normalize_ai_label(
         config.get("ai_provider", ""),
         config.get("ai_model", ""),
@@ -1396,6 +1546,8 @@ def deliver_brief(brief_text: str, method: str, config: dict) -> dict:
     final_brief, metadata = decorate_brief(
         brief_text, ai_label,
         prompt_version=config.get("prompt_version", ""),
+        is_fallback=is_fallback,
+        primary_label=primary_label,
     )
     results["report_title"] = metadata["report_title"]
 
@@ -1414,11 +1566,17 @@ def deliver_brief(brief_text: str, method: str, config: dict) -> dict:
             report_title=metadata["report_title"],
             ai_label=ai_label,
             open_browser=open_browser,
+            is_fallback=is_fallback,
+            primary_label=primary_label,
+            structured=config.get("structured"),
+            perf=config.get("perf"),
         )
         results["html"] = html_path
 
     if method in ("telegram", "both"):
         caption = metadata["report_title"]
+        if is_fallback:
+            caption = f"⚠️ [CONTINGENCIA] {caption}"
         tg_ok = send_telegram_html(
             html_path,
             caption,
@@ -1428,3 +1586,4 @@ def deliver_brief(brief_text: str, method: str, config: dict) -> dict:
         results["telegram"] = "enviado" if tg_ok else "error"
 
     return results
+

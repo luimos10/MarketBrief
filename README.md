@@ -2,7 +2,7 @@
 
 Motor de briefing pre-market institucional para traders.
 Recolecta datos multi-asset, calcula indicadores y bias scores deterministas,
-genera un informe con LLM (Gemini o Groq) y entrega Markdown + HTML + Telegram.
+genera un informe con LLM (Gemini, con cadena de fallback entre sus modelos) y entrega Markdown + HTML + Telegram.
 Además, persiste cada call en un logbook estructurado para medir hit rate
 real en el tiempo.
 
@@ -53,9 +53,13 @@ Cada corrida (manual o programada) produce un informe institucional con:
   niveles exactos, trigger, escenarios probabilísticos (base + alternativo)
   con R:R, catalizador específico y confluencia macro.
 - **Indicadores técnicos verificados** (EMA20/55/200, RSI14, MACD, ATR, BB%,
-  ADX) calculados localmente con pandas/numpy — el LLM ya no inventa niveles.
+  ADX) más **z-score 30d, máximo drawdown 30d y volatilidad realizada 30d**,
+  calculados localmente con pandas/numpy — el LLM ya no inventa niveles.
 - **Bias scores numéricos** -100..+100 por activo, con desglose por componente
-  (trend, momentum, positioning, sentiment, volatility).
+  (trend, momentum, positioning, sentiment, volatility). La volatilidad pondera
+  suavemente el z-score/drawdown (clamp ±0.3).
+- **Matriz de correlación** (Pearson, retornos diarios 30d) entre todos los
+  activos, inyectada en el contexto del LLM.
 - **Options flow BTC** (Deribit): PC ratio, max pain, strikes magnéticos cerca
   del spot, detección de pin day risk.
 - **COT report semanal** (CFTC): posicionamiento smart money vs speculators
@@ -67,8 +71,11 @@ Cada corrida (manual o programada) produce un informe institucional con:
 - **News & sentiment** (CryptoPanic + Finnhub, opcional con keys).
 - **Plan operativo** con 5-6 setups concretos (entrada / SL / TP1 / TP2 / R:R
   / tamaño / probabilidad).
-- **Salida JSON estructurada** con `principales` + `macro_context` —
-  persistida en `output/calls.jsonl` para evaluación posterior.
+- **Salida JSON estructurada** (esquema rico: `report`, `regime`, `aggregate`,
+  `assets` con entry/stop/tp1/tp2/rr/ev_r, `best_setup`, `no_trade_conditions`)
+  — normalizada y persistida en `output/calls.jsonl` para evaluación posterior.
+- **Dashboard de rendimiento** embebido en el HTML: hit rate histórico global
+  y por activo + calibración (probabilidad declarada vs acierto real).
 
 ---
 
@@ -90,7 +97,7 @@ Cada corrida (manual o programada) produce un informe institucional con:
      │ │ │ │ │ │ │ │ │ │ │             │                │
      │ │ │ │ │ │ │ │ │ │ │             ▼                ▼
      │ │ │ │ │ │ │ │ │ │ │      generate_brief    extract_json_block
-     │ │ │ │ │ │ │ │ │ │ │      (Gemini/Groq)     → output/brief_*.json
+      │ │ │ │ │ │ │ │ │ │ │      (Gemini)           → output/brief_*.json
      │ │ │ │ │ │ │ │ │ │ │             │            + output/calls.jsonl
      │ │ │ │ │ │ │ │ │ │ │             ▼
      │ │ │ │ │ │ │ │ │ │ │       indicators.py + bias_engine.py
@@ -110,6 +117,14 @@ Cada corrida (manual o programada) produce un informe institucional con:
 
 Cache layer (diskcache): TTL por categoría
    yfinance_daily=1h | crypto_realtime=60s | funding_history=30min | macro=6h
+
+Loop de rendimiento (offline, no bloquea la generación del brief):
+   evaluate_calls.py
+      → modules/evaluator.py   (sesgo + niveles entry/stop/tp1/tp2 sobre
+                                velas horarias Binance / yfinance)
+      → output/eval_results.jsonl   detalle por call
+      → output/perf.json            agregado → dashboard HTML (brief.py lo lee)
+      → con --write: calls.jsonl    marca evaluated=true + eval[]
 ```
 
 ---
@@ -132,6 +147,7 @@ Cache layer (diskcache): TTL por categoría
 | **Curva yield + liquidez Fed** | **FRED (St. Louis Fed)** | **6h cache** | **Spread 10Y-2Y inversion (85% recession indicator), RRP/TGA delta semanal (Fed drain vs liquidez)** |
 | **VIX term structure** | **Yahoo (^VIX9D, ^VIX3M, ^VVIX)** | **1h cache** | **Contango (calma) vs backwardation (stress) → regime shift 2-4 semanas** |
 | **Sector rotation** | **Yahoo (XLK, XLF, XLE, XLY, XLU)** | **1h cache** | **Risk-on (Tech lead) vs risk-off (Utilities lead) vs inflación (Energy lead)** |
+| **Correlación cruzada** | **Yahoo (retornos 30d)** | **1h cache** | **Matriz Pearson entre activos → confluencia/divergencia** |
 
 Todas las fuentes corren en paralelo con `ThreadPoolExecutor(max_workers=8)`.
 Tiempo total típico: **10-15s en cold cache, <1s en warm cache.**
@@ -153,31 +169,52 @@ Tiempo total típico: **10-15s en cold cache, <1s en warm cache.**
 2. **Post-procesamiento numérico** (`modules/indicators.py` + `modules/bias_engine.py`)
    Para cada activo (crypto 1d+4h y tradicionales 1d):
    - Computa EMA20/55/200, RSI14, MACD, ATR, Bollinger %B, ADX.
+   - Computa **z-score 30d, máximo drawdown 30d y volatilidad realizada 30d**.
    - Calcula bias score -100..+100 con pesos:
      `trend 30% + momentum 25% + positioning 20% + sentiment 15% + volatility 10%`.
+     El componente de volatilidad pondera el z-score (±2.5σ → ±0.25) y penaliza
+     drawdowns < -3% (clamp ±0.3).
    - Asigna etiqueta cualitativa (`Muy alcista | Alcista | Neutral | Bajista | Muy bajista`).
 
 3. **Construcción del prompt** (`modules/prompt_builder.py`)
+   - **Sanitiza** el contexto con `_sanitize_node`: convierte `N/A`, `ERROR`,
+     `none`, `null` o cadenas vacías en `None` para que el LLM nunca lea
+     marcadores de error como datos reales.
    - Formatea TODO el contexto en un texto estructurado.
    - Inyecta las secciones especiales: **INDICADORES TÉCNICOS**, **BIAS SCORES**,
-     **OPTIONS FLOW**, **COT REPORT**, **LIQUIDACIONES 24h**, **FUNDING RÉGIMEN**,
-     **EVENTOS MACRO HOY**, **NEWS & SENTIMENT**.
-   - Anexa el template editable (`prompt_template.txt` o `prompt_template_v2.txt`).
-   - Anexa el esquema JSON de salida estructurada obligatoria.
+     **MATRIZ DE CORRELACIÓN**, **MÉTRICAS ADICIONALES** (z-score / drawdown /
+     volatilidad), **OPTIONS FLOW**, **COT REPORT**, **LIQUIDACIONES 24h**,
+     **FUNDING RÉGIMEN**, **EVENTOS MACRO HOY**, **NEWS & SENTIMENT**.
+   - Anexa el template editable (`Prompt Maestro` .md, `prompt_template.txt` o
+     `prompt_template_v2.txt`). Si es el `Prompt Maestro` (.md) no se anexa el
+     esquema JSON legado: ya lo define el propio template (esquema rico).
    - Inyecta `Versión prompt: vX.X` para tracking.
 
 4. **Generación con LLM** (`modules/brief_generator.py`)
-   - **Gemini** vía `google-genai` con Google Search Grounding activable.
-   - **Groq** vía API OpenAI-compatible (Llama 4 Scout 17B por default).
+   - **Solo Gemini** vía `google-genai` con Google Search Grounding activable.
+     Con `thinking_config.thinking_budget=0` (modelos Flash/Lite) para volcar
+     todo el presupuesto a la respuesta visible; si el grounding agota cuota
+     (`RESOURCE_EXHAUSTED`) se reintenta sin search.
+   - **Cadena de fallback entre modelos Gemini** (misma API key):
+     `GEMINI_MODEL` (primario) → `GEMINI_FALLBACK_MODELS` (en orden). Si
+     **toda** la cadena falla en una pasada, espera ~60s y la repite (2
+     pasadas) para dar tiempo a liberar cuota por minuto.
    - Retry 3x con exponential backoff para 429/5xx.
    - Temperatura 0.3 para consistencia.
 
 5. **Extracción JSON + Logbook** (`modules/logbook.py`)
-   - Busca el bloque ` ```json ... ``` ` al final del brief.
+   - Busca el bloque ` ```json ... ``` ` y lo **normaliza al esquema rico**
+     canónico (`report`, `regime`, `aggregate`, `assets`, `intermarket`,
+     `catalysts`, `risks`, `best_setup`, `no_trade_conditions`), con
+     backward-compat para los esquemas legacy v1.4 (`principales`+
+     `macro_context`) y v1.3 (`activos`).
    - Lo guarda como `output/brief_YYYY-MM-DD.json` (sidecar).
-   - Agrega una línea a `output/calls.jsonl` con:
-     timestamp, ai_label, prompt_version, structured (JSON parseado),
-     snapshot (precios + bias scores al momento del brief).
+   - Agrega una línea a `output/calls.jsonl` con: timestamp, ai_label,
+     prompt_version, structured, snapshot (precios + bias scores al momento),
+     `synthetic` y `evaluated=false`.
+   - **Fallback sintético**: si el LLM no emitió el bloque JSON, se sintetiza
+     uno mínimo desde los bias_scores (`build_synthetic_structured`) para que
+     el logbook nunca quede vacío (queda marcado `synthetic=true`).
    - Limpia el JSON crudo del MD/HTML entregado al usuario.
 
 6. **Entrega** (`modules/delivery.py`)
@@ -187,7 +224,9 @@ Tiempo total típico: **10-15s en cold cache, <1s en warm cache.**
    - El subtítulo del header HTML muestra la **hora local de cada bolsa**
      (Tokio · Londres · Nueva York) y resalta la **próxima apertura** —en vez de
      un texto fijo— calculado con `zoneinfo` (`build_header_subtitle`).
-   - Genera HTML (parser propio sin dependencias).
+   - Genera HTML (parser propio sin dependencias) e **inyecta el dashboard**:
+     tarjetas de sesgo por activo (orden por tier P/M/W) + gráfico Chart.js +
+     tabla de **rendimiento histórico** leída de `output/perf.json`.
    - Envía documento HTML por Telegram si corresponde.
    - Guarda siempre Markdown como respaldo timestamped.
 
@@ -199,9 +238,10 @@ Tiempo total típico: **10-15s en cold cache, <1s en warm cache.**
 MarketBrief/
 ├── brief.py                       # Orquestador principal (CLI entry)
 ├── config.py                      # Variables, símbolos, paths, timezone
-├── evaluate_calls.py              # Script standalone para medir hit rate
-├── prompt_template.txt            # Template v1 (default)
-├── prompt_template_v2.txt         # Template v2 (para A/B testing)
+├── evaluate_calls.py              # CLI del evaluador v2 (dirección + niveles)
+├── prompt_template.txt            # Template v1 (A/B)
+├── prompt_template_v2.txt         # Template v2 (A/B testing)
+├── Prompt Maestro — … .md         # Template por defecto (esquema rico)
 ├── requirements.txt
 ├── install_scheduled_task.ps1     # Tarea programada Windows
 ├── remove_scheduled_task.ps1
@@ -211,25 +251,29 @@ MarketBrief/
 ├── modules/
 │   ├── cache.py                   # diskcache TTL backend + decorador @cached
 │   ├── data_fetcher.py            # 11 fetchers + ThreadPool collect_all_data
-│   ├── indicators.py              # EMA, RSI, MACD, ATR, BB%, ADX (pandas puro)
+│   ├── indicators.py              # EMA, RSI, MACD, ATR, BB%, ADX, z/dd/vol
 │   ├── bias_engine.py             # Score -100..+100 con desglose por componente
 │   ├── options_flow.py            # Deribit BTC: PC ratio, max pain, gamma proxy
 │   ├── news_sentiment.py          # CryptoPanic + Finnhub aggregator
 │   ├── cot_report.py              # CFTC Legacy Futures-Only vía Socrata
-│   ├── prompt_builder.py          # Formateo del contexto + esquema JSON
-│   ├── brief_generator.py         # Cliente Gemini + Groq con retry
-│   ├── delivery.py                # MD parser, HTML, Telegram, decorate_brief
-│   └── logbook.py                 # Extract JSON + sidecar + calls.jsonl
+│   ├── prompt_builder.py          # Contexto sanitizado + esquema JSON
+│   ├── brief_generator.py         # Gemini + cadena de fallback (modelos Gemini)
+│   ├── delivery.py                # MD parser, HTML + dashboard, Telegram
+│   ├── evaluator.py               # Eval v2: dirección, niveles, R:R, calibración
+│   └── logbook.py                 # JSON rico normalizado + sidecar + calls.jsonl
 │
 ├── output/                        # Briefs generados + logbook
 │   ├── brief_YYYY-MM-DD.md
-│   ├── brief_YYYY-MM-DD.html
+│   ├── brief_YYYY-MM-DD.html      # Incluye dashboard de rendimiento
 │   ├── brief_YYYY-MM-DD.json      # Sidecar JSON estructurado
-│   └── calls.jsonl                # Append-only logbook para hit rate
+│   ├── calls.jsonl                # Append-only logbook (evaluated/write-back)
+│   ├── eval_results.jsonl         # Detalle de la última evaluación
+│   └── perf.json                  # Agregado de rendimiento (dashboard)
 │
 ├── logs/                          # Logs por corrida
 │   └── brief_YYYY-MM-DD_HHMMSS.log
 │
+├── docs/                          # Notas y análisis puntuales
 ├── .cache/                        # diskcache local (gitignored)
 ├── .env                           # API keys (no commit)
 └── .env.example
@@ -274,20 +318,18 @@ Edita `.env` con tus API keys (ver sección siguiente).
 
 Todas configuradas en `.env`. Las marcadas como `(opcional)` se omiten gracefully.
 
-### IA (obligatoria al menos una)
+### IA
 
 | Variable | Default | Descripción |
 |----------|---------|-------------|
-| `AI_MODEL` | `gemini` | Proveedor **primario**: `gemini` o `groq` |
-| `GEMINI_API_KEY` | — | Required si AI_MODEL=gemini |
-| `GEMINI_MODEL` | `gemini-2.5-flash-lite` | |
-| `GROQ_API_KEY` | — | Required si AI_MODEL=groq; también habilita el fallback |
-| `GROQ_MODEL` | `groq/compound` | Modelo principal de Groq (1er fallback) |
-| `GROQ_FALLBACK_MODEL` | `qwen/qwen3.6-27b` | Modelo secundario de Groq (2do fallback) |
-| `MAX_TOKENS` | `12000` | Tokens de salida máximos |
-| `GROQ_MAX_TOKENS` | `8192` | Techo Groq (clamp automático) |
+| `GEMINI_API_KEY` | — | **Obligatoria** — única API key de IA |
+| `GEMINI_MODEL` | `gemini-3.8-flash` | Modelo primario de Gemini |
+| `GEMINI_FALLBACK_MODELS` | `gemini-3.5-flash-lite` | Fallbacks en orden, separados por coma |
+| `MAX_TOKENS` | `32768` | Tokens de salida máximos |
 
-> **Cadena de fallback automático entre modelos.** Si Gemini (`gemini-2.5-flash`) falla tras sus reintentos, el brief intenta con Groq usando `groq/compound` y, si este falla, utiliza `qwen/qwen3.6-27b`. El título y el footer del informe muestran el modelo que realmente lo generó. Lógica en `generate_brief_with_fallback` (`modules/brief_generator.py`).
+> **Cadena de fallback solo-Gemini.** Si el primario falla tras sus reintentos internos, el brief cae al siguiente modelo de `GEMINI_FALLBACK_MODELS` (misma API key). Si **toda** la cadena falla en una pasada, espera ~60s y la repite (2 pasadas) para dar tiempo a liberar cuota por minuto. El título, el footer y un banner de contingencia en el HTML muestran el modelo que **realmente** lo generó. Lógica en `generate_brief_with_fallback` (`modules/brief_generator.py`).
+
+> **Límite de tokens.** `MAX_TOKENS` fija el techo de salida. Los modelos Flash/Lite se invocan con `thinking_config.thinking_budget=0` (todo el presupuesto va a la respuesta visible).
 
 ### Datos de mercado
 
@@ -336,11 +378,8 @@ Todas configuradas en `.env`. Las marcadas como `(opcional)` se omiten gracefull
 # Ambos
 .\venv\Scripts\python.exe brief.py --both
 
-# Forzar Groq
-.\venv\Scripts\python.exe brief.py --model groq --html
-
 # Gemini sin web search
-.\venv\Scripts\python.exe brief.py --model gemini --no-search
+.\venv\Scripts\python.exe brief.py --no-search
 ```
 
 ### Argumentos CLI
@@ -350,7 +389,7 @@ Todas configuradas en `.env`. Las marcadas como `(opcional)` se omiten gracefull
 | `--html` | Genera HTML local |
 | `--telegram` | Envía por Telegram (también genera HTML) |
 | `--both` | HTML + Telegram |
-| `--model {gemini,groq}` | Fuerza el proveedor |
+| `--model {gemini}` | Fuerza el proveedor (solo gemini disponible) |
 | `--no-search` | Desactiva Google Search Grounding en Gemini |
 | `--no-open` | No abre navegador tras generar HTML |
 
@@ -370,39 +409,48 @@ Cada corrida produce:
 | Archivo | Contenido |
 |---------|-----------|
 | `output/brief_YYYY-MM-DD.md` | Brief en Markdown (siempre, respaldo) |
-| `output/brief_YYYY-MM-DD.html` | Brief en HTML (si `--html`, `--telegram` o `--both`) |
-| `output/brief_YYYY-MM-DD.json` | Sidecar JSON estructurado (sesgo + niveles por activo) |
-| `output/calls.jsonl` | Append-only logbook acumulado para evaluación |
+| `output/brief_YYYY-MM-DD.html` | Brief en HTML con dashboard de sesgo + rendimiento (si `--html`, `--telegram` o `--both`) |
+| `output/brief_YYYY-MM-DD.json` | Sidecar JSON estructurado (esquema rico, normalizado) |
+| `output/calls.jsonl` | Append-only logbook acumulado (con `evaluated` / `eval`) |
+| `output/eval_results.jsonl` | Detalle de la última corrida de `evaluate_calls.py` |
+| `output/perf.json` | Agregado de rendimiento (dashboard del HTML) |
 | `logs/brief_YYYY-MM-DD_HHMMSS.log` | Log detallado de la corrida |
 
-### Esquema del JSON estructurado (v1.4)
+> `eval_results.jsonl` y `perf.json` los genera `evaluate_calls.py` (no cada
+> brief). El HTML los reutiliza: `brief.py` lee `perf.json` y lo inyecta en el
+> dashboard de rendimiento.
+
+### Esquema del JSON estructurado (rico)
 
 ```json
 {
-  "fecha": "2026-05-25",
-  "prompt_version": "v1.4",
-  "ai_model": "gemini",
-  "sesgo_global": "Alcista|Bajista|Neutral",
-  "mercado_lider": "BTC|Nasdaq|SP500|Gold|Oil|DXY|VIX|Mixto",
-  "principales": {
-    "BTC":    { "sesgo": "...", "precio_referencia": 0, "soporte": 0,
-                "resistencia": 0, "invalidacion": 0,
-                "setup": "continuacion|reversion|sweep|none" },
-    "SP500":  { ... },
-    "NASDAQ": { ... },
-    "GOLD":   { ... },
-    "OIL":    { ... }
+  "report":  { "date": "2026-05-25", "market_bias": "Alcista|Bajista|Neutral",
+               "market_leader": "BTC|Nasdaq|...", "model": "gemini",
+               "prompt_version": "v1.4" },
+  "regime":  { "primary": "...", "secondary": "...", "confidence": null },
+  "aggregate": { "main_assets_average_bias": 0, "decision": "..." },
+  "assets": {
+    "BTC":    { "tier": "P", "price": 0, "bias": 0, "confidence": 0,
+                "signal_quality": "A+", "decision": "LONG|SHORT|WAIT|NO TRADE",
+                "entry": 0, "stop": 0, "tp1": 0, "tp2": 0,
+                "rr": 0, "probability": 0, "ev_r": 0 },
+    "SP500":  { "tier": "P", "...": "..." },
+    "NASDAQ": { "tier": "P" }, "GOLD": { "tier": "P" }, "OIL": { "tier": "P" },
+    "DXY":    { "tier": "M" }, "VIX": { "tier": "M" }, "US10Y": { "tier": "M" },
+    "ETH":    { "tier": "W" }, "SOL": { "tier": "W" },
+    "SILVER": { "tier": "W" }, "US02Y": { "tier": "W" }
   },
-  "macro_context": {
-    "DXY":    { "sesgo": "...", "nivel": 0 },
-    "VIX":    { "sesgo": "...", "nivel": 0 },
-    "US10Y":  { "sesgo": "...", "nivel": 0 }
-  }
+  "intermarket": { "btc_vs_nasdaq": "", "dxy_vs_gold_btc": "",
+                   "vix_signal": "", "watchlist_signal": "" },
+  "catalysts": [], "risks": [], "best_setup": { "...": "..." },
+  "no_trade_conditions": []
 }
 ```
 
-> Nota: `evaluate_calls.py` mantiene backward-compat con el schema v1.3
-> que usaba `activos` en lugar de `principales`.
+> **Compatibilidad.** `modules/logbook.normalize_structured` unifica cualquier
+> esquema al rico. Acepta también el legacy v1.4 (`principales` +
+> `macro_context`, con `sesgo`/`soporte`/`invalidacion`/`setup`) y v1.3
+> (`activos`). Los campos `tier` se derivan por activo (P/M/W).
 
 ---
 
@@ -413,33 +461,51 @@ Cada brief genera una entrada en `output/calls.jsonl` con:
 - Timestamp ISO 8601 UTC
 - `ai_label` (proveedor + modelo)
 - `prompt_version`
-- `structured` (el JSON parseado del LLM)
+- `structured` (JSON normalizado al esquema rico)
 - `snapshot` (precios + bias scores al momento del brief — ground truth)
+- `synthetic` (si el JSON fue sintetizado por el fallback)
+- `evaluated` (lo marca el evaluador; `false` hasta entonces)
 
-### Evaluar hit rate
+### Evaluador v2 (`evaluate_calls.py` + `modules/evaluator.py`)
+
+Además de la dirección del sesgo, valida la **ejecución de niveles** sobre
+velas horarias posteriores al call (Binance para crypto, yfinance para el resto):
+
+- Dirección del sesgo (movimiento real vs snapshot).
+- Ejecución: `entry`/`stop`/`tp1`/`tp2` → `outcome` (`tp1` | `tp2` | `stop` | `none`).
+- R:R logrado (`r_realized`, `rr_hit`) y calibración (probabilidad/confianza
+  declarada por el LLM vs acierto real).
+- Salidas: reporte en consola, `output/perf.json`, `output/eval_results.jsonl`
+  y, con `--write`, el write-back a `calls.jsonl`.
 
 ```powershell
-# Evaluar todos los calls con al menos 20h de antigüedad
+# Evaluar (>=20h de antigüedad) y persistir perf.json + eval_results.jsonl
 .\venv\Scripts\python.exe evaluate_calls.py
+
+# Write-back: marca evaluated=true y adjunta eval[] en calls.jsonl
+.\venv\Scripts\python.exe evaluate_calls.py --write
 
 # Solo los últimos 7 días
 .\venv\Scripts\python.exe evaluate_calls.py --last 7
 
-# Desglosado por versión de prompt (A/B)
-.\venv\Scripts\python.exe evaluate_calls.py --by-version
+# Ventana de validación de niveles en horas (default 24)
+.\venv\Scripts\python.exe evaluate_calls.py --horizon 48
 
-# Cambiar la edad mínima requerida (default 20h)
+# Edad mínima requerida (default 20h)
 .\venv\Scripts\python.exe evaluate_calls.py --min-hours 24
+
+# Solo dirección (omite la validación de niveles)
+.\venv\Scripts\python.exe evaluate_calls.py --no-levels
 ```
 
-Output:
+Output (consola):
 
 ```
-RESULTADO GLOBAL
+RESULTADO GLOBAL (dirección del sesgo)
   Total: hit= 18 miss= 10 skip=  2  →  64.3%
 
 POR ACTIVO
-  BTC       hit=  6 miss=  2 skip=  0  →  75.0%
+  BTC       hit=  6 miss=  2 skip=  0  →  75.0%   [niveles] tp1=3 tp2=1 stop=1 sin-tocar=2
   ETH       hit=  4 miss=  3 skip=  0  →  57.1%
   NASDAQ    hit=  5 miss=  1 skip=  1  →  83.3%
   ...
@@ -449,11 +515,30 @@ POR PROMPT VERSION (A/B)
   v2.0      hit=  9 miss=  4 skip=  1  →  69.2%
 ```
 
-### Criterio de hit/miss
+### Criterio de hit/miss (dirección)
 
 - Sesgo **Alcista** → hit si precio subió >0.5% desde snapshot.
 - Sesgo **Bajista** → hit si precio bajó >0.5%.
 - Sesgo **Neutral** → hit si movimiento absoluto ≤0.5%.
+
+### Criterio de ejecución de niveles
+
+- La dirección del setup se infiere del stop: si `stop > entry` es **SHORT**
+  (SL arriba); en caso contrario **LONG**.
+- Se recorre la ventana (`--horizon` horas desde el call) sobre las velas
+  horarias y gana el primer nivel tocado:
+  - **LONG**: `tp1` si `high ≥ tp1`, `tp2` si `high ≥ tp2`, `stop` si `low ≤ stop`.
+  - **SHORT**: `tp1` si `low ≤ tp1`, `tp2` si `low ≤ tp2`, `stop` si `high ≥ stop`.
+- Resultado: `outcome`, `r_realized` (`-1.0` si saltó el stop, el R:R declarado
+  si alcanzó TP), `rr_hit` y `level_hit` (True/False/None si aún no se tocó).
+- Activos con historia horaria: BTC/ETH/SOL (Binance) + SP500/NASDAQ/GOLD/OIL/
+  DXY/VIX/SILVER/US10Y/US02Y (yfinance).
+
+### Calibración
+
+`perf.json` incluye `calibration`: la `probability` media declarada por el LLM
+vs el `actual` (hit rate real). El dashboard del HTML la muestra bajo el hit
+rate global. Una `probability` alta con `actual` bajo indica sobreconfianza.
 
 ---
 
@@ -571,7 +656,7 @@ En GitHub → **Settings → Secrets and variables → Actions**:
 | `GEMINI_API_KEY` | Sí (modelo por defecto) |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | Sí (entrega) |
 | `CMC_API_KEY`, `FRED_API_KEY` | Recomendados |
-| `FMP_API_KEY`, `CRYPTOPANIC_API_KEY`, `FINNHUB_API_KEY`, `GROQ_API_KEY` | Opcionales |
+| `FMP_API_KEY`, `CRYPTOPANIC_API_KEY`, `FINNHUB_API_KEY` | Opcionales |
 
 `config.py` lee las variables del entorno, así que no hace falta `.env` en la nube.
 
@@ -590,7 +675,7 @@ Si prefieres correrlo en tu máquina en vez de (o además de) la nube:
 # Instalar tarea diaria a 09:05 (default)
 powershell -ExecutionPolicy Bypass -File .\install_scheduled_task.ps1 -Telegram
 
-# Variantes: -Both  -Groq  -NoOpen  |  Cambiar nombre/hora: -TaskName "..." -RunAt "09:05"
+# Variantes: -Both  -NoOpen  |  Cambiar nombre/hora: -TaskName "..." -RunAt "09:05"
 
 # Eliminar
 powershell -ExecutionPolicy Bypass -File .\remove_scheduled_task.ps1
@@ -613,30 +698,38 @@ Activa el venv o usa el Python directamente:
 
 ### Falta una API key
 
-Revisa `.env`. Solo `GEMINI_API_KEY` (o `GROQ_API_KEY` si usas Groq) es estrictamente
+Revisa `.env`. Solo `GEMINI_API_KEY` es estrictamente
 obligatoria. Las otras keys (CMC, FMP, CryptoPanic, Finnhub, Telegram) son opcionales
 y la sección correspondiente se omite gracefully.
 
 ### Gemini devuelve `503 UNAVAILABLE`
 
 Saturación temporal del proveedor. El cliente reintenta 3x con backoff exponencial.
-Si tras los reintentos sigue fallando, hay **fallback automático a Groq**: si
-`GROQ_API_KEY` está configurada, el brief se genera con Groq sin intervención y el
-título/footer del informe muestran el modelo que **realmente** lo produjo (ej.
-"Analizado con Groq (…)"). Solo si **todos** los proveedores fallan se aborta la
-corrida (en la nube, eso dispara el aviso de fallo por Telegram).
+Si el modelo primario (`GEMINI_MODEL`) sigue fallando, se activa la **cadena de
+fallback solo-Gemini**: pasa al siguiente modelo de `GEMINI_FALLBACK_MODELS`
+(por defecto `gemini-3.5-flash-lite`). Si **toda** la cadena falla en una pasada,
+espera ~60s y la repite (2 pasadas). El título, el footer y un banner de
+contingencia en el HTML muestran el modelo que **realmente** lo produjo
+(ej. "Analizado con Gemini (gemini-3.5-flash-lite)"). Solo si **todos** los
+modelos fallan en todas las pasadas se aborta la corrida (en la nube, eso
+dispara el aviso de fallo por Telegram).
 
-Para forzar Groq manualmente desde el inicio:
-
-```powershell
-.\venv\Scripts\python.exe brief.py --model groq --html
-```
+> Si Gemini falla por cuota (`RESOURCE_EXHAUSTED`) con Google Search activo, el
+> cliente reintenta inmediatamente **sin** grounding antes de saltar al modelo
+> siguiente de la cadena.
 
 ### El brief no incluye el bloque JSON estructurado
 
 Verifica que el LLM no haya cortado por límite de tokens. Aumenta `MAX_TOKENS`
-o revisa los logs. Si falta el JSON, `calls.jsonl` no se actualiza pero el
-Markdown y HTML se entregan igual.
+o revisa los logs. Si falta el JSON, `brief.py` genera un **fallback sintético**
+desde los bias_scores (`build_synthetic_structured`) y lo registra en
+`calls.jsonl` con `synthetic=true`; el Markdown y HTML se entregan igual.
+
+### El dashboard de rendimiento no aparece en el HTML
+
+El HTML lee `output/perf.json`, que genera `evaluate_calls.py`. Corre al menos
+una vez el evaluador para poblarlo; si el archivo no existe o está corrupto,
+el bloque se omite sin romper el resto del informe.
 
 ### `evaluate_calls.py` reporta `sin precio`
 
@@ -674,15 +767,24 @@ Remove-Item -Recurse -Force .\.cache
 | Hecho | Fase 3: options flow Deribit, news sentiment, COT report semanal, A/B prompt testing |
 | Hecho | Fase 4: tiers de activos (5 principales fijos + 3 macro + 4 watchlist), FRED (curva + liquidez), VIX term structure, sector rotation, frontend dark minimalista |
 | Hecho | Fase 5: despliegue en la nube (GitHub Actions) — 3 corridas/día (Tokio/Londres/NY) disparadas por cron-job.org (DST por zona horaria) + fallbacks de geobloqueo (spot mirror + OKX) |
+| Hecho | Fase 6: evaluador v2 (niveles/TP/SL/RR + calibración + write-back), `perf.json`/`eval_results.jsonl`, dashboard de rendimiento en HTML, matriz de correlación, z-score/drawdown/volatilidad, sanitización de contexto, `thinking_config` |
+| Hecho | Fase 7: cadena de IA **solo-Gemini** (fallback entre modelos + 2 pasadas con espera por cuota); eliminación total de Groq (código, config, workflow) |
 | Pendiente | Alertas intradía (re-runs cada 30 min con bias score delta > threshold) |
-| Pendiente | Dashboard Streamlit para visualizar hit rate por activo y versión |
+| Pendiente | Análisis de cohortes por modelo IA (hit rate por proveedor/modelo en el dashboard) |
 
 ---
 
 ## Limitaciones conocidas
 
-- `--no-search` afecta sólo a Gemini; Groq no usa grounding web.
-- Si `MAX_TOKENS` excede el techo de Groq, se reduce automáticamente.
+- `--no-search` afecta a Gemini (desactiva Google Search Grounding).
+- `thinking_config.thinking_budget=0` sólo aplica a modelos Gemini Flash/Lite/Flex
+  soportados por el SDK; si el SDK no expone `ThinkingConfig`, se continúa sin él.
+- La validación de niveles del evaluador requiere historia horaria: sólo cubre
+  BTC/ETH/SOL (Binance) y SP500/NASDAQ/GOLD/OIL/DXY/VIX/SILVER/US10Y/US02Y
+  (yfinance). Para el resto sólo evalúa dirección. yfinance puede limitar el
+  intradía en rangos muy antiguos (`--horizon` acota la ventana).
+- La calibración del dashboard usa la `probability`/`confidence` declarada por el
+  LLM; si el modelo no la emite, no se calcula.
 - El conversor Markdown→HTML es propio (sin dependencias). Soporta lo esencial
   (headers, bold, italic, listas, tablas, code blocks, blockquotes).
 - Las liquidaciones son **proxy** (wicks 1h) — ningún exchange expone

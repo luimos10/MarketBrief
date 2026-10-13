@@ -143,11 +143,6 @@ def compute_indicators(ohlcv, *, label: str = "") -> dict:
     """
     Computa los indicadores clave sobre una serie OHLCV y devuelve
     un dict con valores escalares listos para inyectar en el prompt.
-
-    Compatible con:
-      - listas ccxt: [[ts,o,h,l,c,v], ...]
-      - DataFrames yfinance (con columnas Open/High/Low/Close/Volume)
-      - listas de dicts {open,high,low,close,volume}
     """
     df = _ohlcv_to_df(ohlcv)
     if len(df) < 30:
@@ -158,24 +153,60 @@ def compute_indicators(ohlcv, *, label: str = "") -> dict:
 
     out = {"label": label, "last_close": round(float(last), 4)}
 
+    # Volatilidad realizada (30d, anualizada aprox: sqrt(252)*pct daily?)
+    try:
+        rets = close.pct_change().dropna()
+        if len(rets) >= 30:
+            vol_daily = rets.std()
+            vol_realized = round(float(vol_daily) * 100 * (np.sqrt(252) if len(rets)>=2 else 1), 2)  # %
+            out["vol_realized_30d_pct"] = vol_realized
+    except Exception:
+        pass
+
+    # Drawdown desde máximo 30d
+    try:
+        window = close.tail(30)
+        if len(window) >= 2:
+            peak = window.cummax()
+            dd = (window - peak) / peak * 100
+            out["max_drawdown_30d_pct"] = round(float(dd.min()), 2)
+    except Exception:
+        pass
+
+    # Z-score del último close respecto a media/std 30d
+    try:
+        window = close.tail(30)
+        if len(window) >= 5:
+            mu = window.mean()
+            sig = window.std()
+            if sig > 0:
+                z = (window.iloc[-1] - mu) / sig
+                out["z_score_30d"] = round(float(z), 2)
+    except Exception:
+        pass
+
     # EMAs
     for p in (20, 55, 200):
         if len(df) >= p:
             v = ema(close, p).iloc[-1]
-            out[f"ema{p}"] = round(float(v), 4)
+            v = float(v)
+            out[f"ema{p}"] = round(v, 4)
             out[f"price_vs_ema{p}_pct"] = round(((last - v) / v) * 100, 2)
         else:
             out[f"ema{p}"] = None
+            out[f"price_vs_ema{p}_pct"] = None
 
     # Alineación: alcista si EMA20>EMA55>EMA200, bajista si invertido
     e20, e55, e200 = out.get("ema20"), out.get("ema55"), out.get("ema200")
-    if e20 and e55 and e200:
+    if e20 is not None and e55 is not None and e200 is not None:
         if e20 > e55 > e200:
             out["ema_alignment"] = "alcista"
         elif e20 < e55 < e200:
             out["ema_alignment"] = "bajista"
         else:
             out["ema_alignment"] = "mixto"
+    else:
+        out["ema_alignment"] = None
 
     # RSI
     rsi_val = rsi(close, 14).iloc[-1]
@@ -186,35 +217,41 @@ def compute_indicators(ohlcv, *, label: str = "") -> dict:
     macd_v = m["macd"].iloc[-1]
     signal_v = m["signal"].iloc[-1]
     hist_v = m["hist"].iloc[-1]
-    out["macd"] = round(float(macd_v), 4) if not np.isnan(macd_v) else None
-    out["macd_signal"] = round(float(signal_v), 4) if not np.isnan(signal_v) else None
-    out["macd_hist"] = round(float(hist_v), 4) if not np.isnan(hist_v) else None
-    if not np.isnan(hist_v):
+    out["macd"] = round(float(macd_v), 4) if macd_v is not None and not np.isnan(macd_v) else None
+    out["macd_signal"] = round(float(signal_v), 4) if signal_v is not None and not np.isnan(signal_v) else None
+    out["macd_hist"] = round(float(hist_v), 4) if hist_v is not None and not np.isnan(hist_v) else None
+    if macd_v is not None and signal_v is not None and hist_v is not None and not np.isnan(hist_v):
         out["macd_state"] = (
             "alcista expandiendo" if macd_v > signal_v and hist_v > 0 and hist_v > m["hist"].iloc[-2]
             else "alcista contrayendo" if macd_v > signal_v
             else "bajista expandiendo" if hist_v < 0 and hist_v < m["hist"].iloc[-2]
             else "bajista contrayendo"
         )
+    else:
+        out["macd_state"] = None
 
     # ATR (volatilidad)
     atr_val = atr(df, 14).iloc[-1]
-    out["atr14"] = round(float(atr_val), 4) if not np.isnan(atr_val) else None
-    if out["atr14"]:
+    out["atr14"] = round(float(atr_val), 4) if atr_val is not None and not np.isnan(atr_val) else None
+    if out["atr14"] is not None:
         out["atr14_pct"] = round((out["atr14"] / float(last)) * 100, 2)
+    else:
+        out["atr14_pct"] = None
 
     # Bollinger %B
     bb_val = bbands_percent(close, 20, 2.0).iloc[-1]
-    out["bb_percent"] = round(float(bb_val), 2) if not np.isnan(bb_val) else None
+    out["bb_percent"] = round(float(bb_val), 2) if bb_val is not None and not np.isnan(bb_val) else None
 
     # ADX (fuerza de tendencia)
     adx_val = adx(df, 14).iloc[-1]
-    out["adx14"] = round(float(adx_val), 1) if not np.isnan(adx_val) else None
+    out["adx14"] = round(float(adx_val), 1) if adx_val is not None and not np.isnan(adx_val) else None
     if out["adx14"] is not None:
         out["trend_strength"] = (
             "fuerte" if out["adx14"] > 25
             else "débil" if out["adx14"] < 20
             else "moderada"
         )
+    else:
+        out["trend_strength"] = None
 
     return out

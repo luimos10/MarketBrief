@@ -1,18 +1,26 @@
 """
 ╔══════════════════════════════════════════════════════════════╗
-║          EVALUATE CALLS — Hit rate del logbook                ║
+║          EVALUATE CALLS v2 — Loop de rendimiento              ║
 ║                                                                ║
-║   Recorre output/calls.jsonl, compara los calls vs el precio  ║
-║   actual de cada activo, y reporta hit rate por:              ║
-║     - sesgo agregado del brief                                ║
-║     - sesgo por activo                                        ║
-║     - prompt_version (para A/B testing)                       ║
+║   Recorre output/calls.jsonl (esquema RICO o legacy), y por    ║
+║   cada call valida:                                            ║
+║     · dirección del sesgo vs movimiento real                   ║
+║     · ejecución de niveles: entry/stop/tp1/tp2 sobre velas     ║
+║       horarias posteriores (Binance / yfinance)                ║
+║     · R:R logrado y calibración (probabilidad/confianza vs     ║
+║       acierto real)                                            ║
+║                                                                ║
+║   Salidas:                                                     ║
+║     · reporte en consola (hit rate por activo y prompt_version)║
+║     · output/perf.json   → dashboard HTML del brief (C3)       ║
+║     · output/eval_results.jsonl → detalle por call             ║
+║     · con --write, actualiza calls.jsonl (evaluated=true)      ║
 ║                                                                ║
 ║   Uso:                                                         ║
-║     python evaluate_calls.py             # todos los calls    ║
-║     python evaluate_calls.py --last 7    # últimos 7 días     ║
-║     python evaluate_calls.py --min-hours 20   # solo calls    ║
-║                                                con ≥20h       ║
+║     python evaluate_calls.py                   # evaluar       ║
+║     python evaluate_calls.py --write           # + write-back  ║
+║     python evaluate_calls.py --last 7  --min-hours 20          ║
+║     python evaluate_calls.py --horizon 48                      ║
 ╚══════════════════════════════════════════════════════════════╝
 """
 
@@ -23,124 +31,36 @@ import json
 import os
 import sys
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-import yfinance as yf
-import requests
-
+from modules.evaluator import (
+    BINANCE_HISTORY_PAIRS,
+    build_perf_payload,
+    evaluate_call,
+    fetch_history,
+    write_back_calls,
+)
 
 # ═══════════════════════════════════════════════════════
 # CONFIG
 # ═══════════════════════════════════════════════════════
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOGBOOK = os.path.join(BASE_DIR, "output", "calls.jsonl")
+PERF_JSON = os.path.join(BASE_DIR, "output", "perf.json")
+EVAL_RESULTS = os.path.join(BASE_DIR, "output", "eval_results.jsonl")
 
-# Tickers para obtener precio actual de cada activo del JSON
-TICKERS_YF = {
-    "SP500":   "ES=F",
-    "NASDAQ":  "NQ=F",
-    "GOLD":    "GC=F",
-    "OIL":     "CL=F",
-    "DXY":     "DX-Y.NYB",
-    "VIX":     "^VIX",
-}
-BINANCE_PAIRS = {
-    "BTC": "BTCUSDT",
-    "ETH": "ETHUSDT",
-    "SOL": "SOLUSDT",
-}
+# Activos soportados por la validación de niveles (los que tienen historia horaria).
+from modules.evaluator import YF_HISTORY_TICKERS
+LEVEL_ASSETS = set(BINANCE_HISTORY_PAIRS.keys()) | set(YF_HISTORY_TICKERS.keys())
 
 
-# ═══════════════════════════════════════════════════════
-# OBTENER PRECIO ACTUAL
-# ═══════════════════════════════════════════════════════
-
-def current_price(asset: str) -> float | None:
-    if asset.upper() in BINANCE_PAIRS:
-        try:
-            r = requests.get(
-                "https://api.binance.com/api/v3/ticker/price",
-                params={"symbol": BINANCE_PAIRS[asset.upper()]}, timeout=8)
-            if r.status_code == 200:
-                return float(r.json()["price"])
-        except Exception:
-            return None
-        return None
-
-    if asset.upper() in TICKERS_YF:
-        try:
-            t = yf.Ticker(TICKERS_YF[asset.upper()])
-            h = t.history(period="1d", interval="1m")
-            if not h.empty:
-                return float(h["Close"].iloc[-1])
-        except Exception:
-            return None
-    return None
-
-
-# ═══════════════════════════════════════════════════════
-# EVALUACIÓN DE UN CALL
-# ═══════════════════════════════════════════════════════
-
-def evaluate_asset_call(asset: str, call: dict, snapshot_price: float | None,
-                        latest_price: float | None) -> dict:
-    """
-    Compara el sesgo del call contra el movimiento real.
-    Hit = sesgo Alcista y precio subió, o Bajista y bajó.
-    Neutral cuenta como hit si el move fue < 0.5% (asset normal) o < 0.3% (índices).
-    """
-    bias = (call.get("sesgo") or "").lower()
-    if snapshot_price is None or latest_price is None or snapshot_price == 0:
-        return {"asset": asset, "hit": None, "reason": "sin precio"}
-
-    pct_move = (latest_price - snapshot_price) / snapshot_price * 100
-    threshold = 0.5  # %
-
-    if bias == "alcista":
-        hit = pct_move > threshold
-    elif bias == "bajista":
-        hit = pct_move < -threshold
-    elif bias == "neutral":
-        hit = abs(pct_move) <= threshold
-    else:
-        return {"asset": asset, "hit": None, "reason": f"sesgo desconocido: {bias}"}
-
-    return {
-        "asset": asset,
-        "bias": bias,
-        "snapshot_price": snapshot_price,
-        "latest_price": latest_price,
-        "move_pct": round(pct_move, 2),
-        "hit": hit,
-    }
-
-
-# ═══════════════════════════════════════════════════════
-# MAIN
-# ═══════════════════════════════════════════════════════
-
-def main():
-    parser = argparse.ArgumentParser(description="Evaluate MarketBrief calls")
-    parser.add_argument("--last", type=int, default=None,
-                        help="Solo los últimos N días")
-    parser.add_argument("--min-hours", type=int, default=20,
-                        help="Edad mínima del call para evaluarlo (default 20h)")
-    parser.add_argument("--by-version", action="store_true",
-                        help="Desglose por prompt_version")
-    args = parser.parse_args()
-
+def _load_entries() -> list[dict]:
     if not os.path.exists(LOGBOOK):
         print(f"✗ Logbook no encontrado: {LOGBOOK}")
         sys.exit(1)
-
-    cutoff_old = datetime.now(timezone.utc) - timedelta(hours=args.min_hours)
-    cutoff_new = None
-    if args.last:
-        cutoff_new = datetime.now(timezone.utc) - timedelta(days=args.last)
-
     entries = []
     with open(LOGBOOK, "r", encoding="utf-8") as f:
         for line in f:
@@ -151,84 +71,155 @@ def main():
                 entries.append(json.loads(line))
             except json.JSONDecodeError:
                 continue
+    return entries
+
+
+def _fetch_latest_prices(assets: set) -> dict:
+    import requests
+
+    import modules.evaluator as ev
+
+    latest = {}
+    for alias in assets:
+        u = alias.upper()
+        if u in ev.BINANCE_HISTORY_PAIRS:
+            try:
+                r = requests.get(
+                    "https://api.binance.com/api/v3/ticker/price",
+                    params={"symbol": ev.BINANCE_HISTORY_PAIRS[u]}, timeout=8)
+                if r.status_code == 200:
+                    latest[u] = float(r.json()["price"])
+                    continue
+            except Exception:
+                pass
+        yf_t = ev.YF_HISTORY_TICKERS.get(u)
+        if yf_t:
+            try:
+                import yfinance as yf
+                hist = yf.Ticker(yf_t).history(period="1d", interval="1m")
+                if not hist.empty:
+                    latest[u] = float(hist["Close"].iloc[-1])
+                    continue
+            except Exception:
+                pass
+        latest[u] = None
+    return latest
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Evaluate MarketBrief calls (v2)")
+    parser.add_argument("--last", type=int, default=None,
+                        help="Solo los últimos N días")
+    parser.add_argument("--horizon", type=int, default=24,
+                        help="Ventana de validación de niveles en horas (default 24)")
+    parser.add_argument("--min-hours", type=int, default=20,
+                        help="Edad mínima del call para evaluarlo (default 20h)")
+    parser.add_argument("--write", "-w", action="store_true",
+                        help="Escribe evaluated=true + eval[] de vuelta a calls.jsonl")
+    parser.add_argument("--by-version", action="store_true", default=True,
+                        help="Desglose por prompt_version (default: on)")
+    parser.add_argument("--no-levels", action="store_true",
+                        help="Omitir validación de niveles (solo dirección)")
+    args = parser.parse_args()
+
+    entries = _load_entries()
+    now = datetime.now(timezone.utc)
 
     # Filtrar por antigüedad
+    cutoff_old = now.timestamp() - args.min_hours * 3600
+    cutoff_new = None
+    if args.last:
+        cutoff_new = now.timestamp() - args.last * 86400
+
     selected = []
     for e in entries:
         ts_str = e.get("timestamp", "").replace("Z", "+00:00")
         try:
-            ts = datetime.fromisoformat(ts_str)
+            ts = datetime.fromisoformat(ts_str).timestamp()
         except Exception:
             continue
         if ts > cutoff_old:
-            continue  # demasiado reciente
+            continue
         if cutoff_new and ts < cutoff_new:
             continue
-        selected.append((ts, e))
+        selected.append(e)
 
     print(f"Logbook total: {len(entries)} | Evaluables (≥{args.min_hours}h): {len(selected)}")
     if not selected:
         print("Nada que evaluar.")
         return
 
-    # Recoger precios actuales para todos los activos vistos
-    def _assets_dict(structured: dict) -> dict:
-        """v1.4 usa 'principales'; v1.3 y anteriores usan 'activos'.
-        Soporta ambos para backward-compat."""
-        return (structured.get("principales")
-                or structured.get("activos")
-                or {})
+    # Activos vistos (del esquema rico o legacy)
+    def _assets_dict(e: dict) -> dict:
+        s = e.get("structured") or {}
+        if isinstance(s, str):
+            try:
+                s = json.loads(s)
+            except json.JSONDecodeError:
+                return {}
+        return (s.get("assets") or s.get("principales") or s.get("activos") or {})
 
     seen_assets = set()
-    for _, e in selected:
-        s = e.get("structured") or {}
-        for asset in _assets_dict(s):
+    for e in selected:
+        for asset in _assets_dict(e):
             seen_assets.add(asset.upper())
-
     print(f"Activos en logbook: {sorted(seen_assets)}")
-    print("Obteniendo precios actuales...")
-    latest_prices = {a: current_price(a) for a in seen_assets}
 
-    # Estructuras de resultado
+    # Precios actuales (necesarios para dirección del sesgo)
+    print("Obteniendo precios actuales...")
+    latest_prices = _fetch_latest_prices(seen_assets)
+
+    # Historia horaria por activo (para validar niveles) en el rango visto
+    histories = {}
+    if not args.no_levels:
+        min_ts = now
+        max_ts = datetime.fromtimestamp(0, tz=timezone.utc)
+        for e in selected:
+            ts_str = e.get("timestamp", "").replace("Z", "+00:00")
+            try:
+                ts = datetime.fromisoformat(ts_str)
+            except Exception:
+                continue
+            min_ts = min(min_ts, ts)
+            max_ts = max(max_ts, ts)
+        level_assets = {a for a in seen_assets if a in LEVEL_ASSETS}
+        for asset in sorted(level_assets):
+            hist = fetch_history(asset, min_ts, now)
+            histories[asset] = hist
+            print(f"  · {asset}: {len(hist)} velas horarias "
+                  f"[{hist[0]['ts']:%m-%d %H:%M} → {hist[-1]['ts']:%m-%d %H:%M}]" if hist else f"  · {asset}: sin historia")
+
+    # Evaluar
     overall = {"hit": 0, "miss": 0, "skip": 0}
     by_asset = defaultdict(lambda: {"hit": 0, "miss": 0, "skip": 0})
     by_version = defaultdict(lambda: {"hit": 0, "miss": 0, "skip": 0})
+    all_results: list[dict] = []
+    level_stats = defaultdict(lambda: {"tp1": 0, "tp2": 0, "stop": 0, "none": 0})
 
-    # Evaluar global call
-    for ts, e in selected:
-        s = e.get("structured") or {}
-        snap = e.get("snapshot") or {}
-        snap_prices = snap.get("prices", {})
+    for e in selected:
+        results = evaluate_call(e, histories, horizon_hours=args.horizon,
+                                latest_prices=latest_prices)
         ver = e.get("prompt_version", "unknown")
-
-        # Por activo
-        for asset, asset_call in _assets_dict(s).items():
-            asset_u = asset.upper()
-            # Buscar snapshot price del activo: probar varias variantes
-            sp = (snap_prices.get(asset_u)
-                  or snap_prices.get(asset)
-                  or asset_call.get("precio_referencia"))
-            try:
-                sp = float(sp) if sp not in (None, "", 0) else None
-            except (TypeError, ValueError):
-                sp = None
-
-            lp = latest_prices.get(asset_u)
-            r = evaluate_asset_call(asset_u, asset_call, sp, lp)
-            if r["hit"] is True:
+        for r in results:
+            stat = by_asset[r.get("asset", "?")]
+            r["prompt_version"] = ver
+            if r.get("hit") is True:
                 overall["hit"] += 1
-                by_asset[asset_u]["hit"] += 1
+                stat["hit"] += 1
                 by_version[ver]["hit"] += 1
-            elif r["hit"] is False:
+            elif r.get("hit") is False:
                 overall["miss"] += 1
-                by_asset[asset_u]["miss"] += 1
+                stat["miss"] += 1
                 by_version[ver]["miss"] += 1
             else:
                 overall["skip"] += 1
-                by_asset[asset_u]["skip"] += 1
+                stat["skip"] += 1
                 by_version[ver]["skip"] += 1
+            if r.get("outcome"):
+                level_stats[r["asset"]][r["outcome"]] += 1
+            all_results.append(r)
 
-    # Reporte
+    # ── Reporte ──
     def fmt(stats):
         total_eval = stats["hit"] + stats["miss"]
         if total_eval == 0:
@@ -238,7 +229,7 @@ def main():
                 f"skip={stats['skip']:3d}  →  {rate:.1f}%")
 
     print("\n" + "=" * 60)
-    print("RESULTADO GLOBAL")
+    print("RESULTADO GLOBAL (dirección del sesgo)")
     print("=" * 60)
     print(f"  Total: {fmt(overall)}")
 
@@ -246,7 +237,11 @@ def main():
     print("POR ACTIVO")
     print("-" * 60)
     for asset, stats in sorted(by_asset.items()):
-        print(f"  {asset:8s}  {fmt(stats)}")
+        extra = ""
+        if asset in level_stats and any(level_stats[asset].values()):
+            o = level_stats[asset]
+            extra = f"   [niveles] tp1={o['tp1']} tp2={o['tp2']} stop={o['stop']} sin-tocar={o['none']}"
+        print(f"  {asset:8s}  {fmt(stats)}{extra}")
 
     if args.by_version:
         print("\n" + "-" * 60)
@@ -254,6 +249,22 @@ def main():
         print("-" * 60)
         for ver, stats in sorted(by_version.items()):
             print(f"  {ver:10s}  {fmt(stats)}")
+
+    # ── Persistencia ──
+    payload = build_perf_payload(all_results, by_version=args.by_version)
+    with open(PERF_JSON, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2, ensure_ascii=False)
+
+    with open(EVAL_RESULTS, "w", encoding="utf-8") as f:
+        for r in all_results:
+            f.write(json.dumps(r, default=str, ensure_ascii=False) + "\n")
+
+    print(f"\n  · perf.json → {PERF_JSON}")
+    print(f"  · eval_results.jsonl → {EVAL_RESULTS}")
+
+    if args.write:
+        write_back_calls(LOGBOOK, entries, all_results)
+        print("  · calls.jsonl actualizado (evaluated=true)")
 
 
 if __name__ == "__main__":
