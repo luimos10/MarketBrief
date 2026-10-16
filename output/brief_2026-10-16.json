@@ -3,23 +3,23 @@
     "date": "2026-10-16",
     "market_bias": "Neutral",
     "market_leader": "Oil",
-    "model": "DeepSeek Quant Engine Institutional v1.4",
+    "model": "Claude-3.5-Sonnet / Institutional Quant Engine",
     "prompt_version": "v1.4"
   },
   "regime": {
-    "primary": "Inflation-Driven",
-    "secondary": "Sector Rotation",
-    "confidence": null
+    "primary": "Inflationary",
+    "secondary": "Transition",
+    "confidence": 75
   },
   "aggregate": {
-    "main_assets_average_bias": 13.8,
-    "decision": "WAIT"
+    "main_assets_average_bias": 11.6,
+    "decision": "NO TRADE"
   },
   "assets": {
     "BTC": {
       "tier": "P",
-      "price": 82088.99,
-      "bias": 16,
+      "price": 82068.04,
+      "bias": 4,
       "confidence": 52,
       "signal_quality": "NO TRADE",
       "decision": "WAIT",
@@ -33,8 +33,8 @@
     },
     "SP500": {
       "tier": "P",
-      "price": 7794.25,
-      "bias": 13,
+      "price": 7802.0,
+      "bias": 15,
       "confidence": 58,
       "signal_quality": "NO TRADE",
       "decision": "WAIT",
@@ -48,8 +48,8 @@
     },
     "NASDAQ": {
       "tier": "P",
-      "price": 30132.75,
-      "bias": 3,
+      "price": 30070.0,
+      "bias": 2,
       "confidence": 54,
       "signal_quality": "NO TRADE",
       "decision": "WAIT",
@@ -63,9 +63,9 @@
     },
     "GOLD": {
       "tier": "P",
-      "price": 4194.9,
+      "price": 4197.2002,
       "bias": -21,
-      "confidence": 55,
+      "confidence": 51,
       "signal_quality": "NO TRADE",
       "decision": "WAIT",
       "entry": null,
@@ -78,25 +78,25 @@
     },
     "OIL": {
       "tier": "P",
-      "price": 95.92,
+      "price": 95.78,
       "bias": 58,
       "confidence": 76,
       "signal_quality": "A",
       "decision": "LONG",
-      "entry": 94.1,
-      "stop": 91.8,
-      "tp1": 98.3,
-      "tp2": 101.0,
-      "rr": 2.45,
-      "probability": 60,
-      "ev_r": 0.86
+      "entry": 95.7,
+      "stop": 93.1,
+      "tp1": 98.32,
+      "tp2": 101.08,
+      "rr": 2.05,
+      "probability": 65,
+      "ev_r": 0.82
     },
     "DXY": {
       "tier": "M",
-      "price": 101.874,
-      "bias": 13,
+      "price": 101.772,
+      "bias": 12,
       "confidence": null,
-      "signal_quality": null,
+      "signal_quality": "NO TRADE",
       "decision": "WAIT",
       "entry": null,
       "stop": null,
@@ -108,10 +108,10 @@
     },
     "VIX": {
       "tier": "M",
-      "price": 16.46,
-      "bias": -10,
+      "price": 15.99,
+      "bias": -29,
       "confidence": null,
-      "signal_quality": null,
+      "signal_quality": "NO TRADE",
       "decision": "WAIT",
       "entry": null,
       "stop": null,
@@ -123,10 +123,10 @@
     },
     "US10Y": {
       "tier": "M",
-      "price": 5.089,
-      "bias": 11,
+      "price": 5.108,
+      "bias": 13,
       "confidence": null,
-      "signal_quality": null,
+      "signal_quality": "NO TRADE",
       "decision": "WAIT",
       "entry": null,
       "stop": null,
@@ -138,10 +138,10 @@
     },
     "ETH": {
       "tier": "W",
-      "price": 2446.24,
-      "bias": 9,
+      "price": 2463.73,
+      "bias": 11,
       "confidence": null,
-      "signal_quality": null,
+      "signal_quality": "NO TRADE",
       "decision": "WAIT",
       "entry": null,
       "stop": null,
@@ -153,10 +153,10 @@
     },
     "SOL": {
       "tier": "W",
-      "price": 105.98,
-      "bias": 8,
+      "price": 105.63,
+      "bias": 7,
       "confidence": null,
-      "signal_quality": null,
+      "signal_quality": "NO TRADE",
       "decision": "WAIT",
       "entry": null,
       "stop": null,
@@ -168,10 +168,10 @@
     },
     "SILVER": {
       "tier": "W",
-      "price": 57.735,
-      "bias": -57,
+      "price": 58.04,
+      "bias": -55,
       "confidence": null,
-      "signal_quality": null,
+      "signal_quality": "NO TRADE",
       "decision": "WAIT",
       "entry": null,
       "stop": null,
@@ -183,10 +183,10 @@
     },
     "US02Y": {
       "tier": "W",
-      "price": 4.088,
-      "bias": 43,
+      "price": 4.065,
+      "bias": 27,
       "confidence": null,
-      "signal_quality": null,
+      "signal_quality": "NO TRADE",
       "decision": "WAIT",
       "entry": null,
       "stop": null,
@@ -198,45 +198,41 @@
     }
   },
   "intermarket": {
-    "btc_vs_nasdaq": "Divergencia activa con correlacion debil (+0.11); BTC absorbe la caida del NQ.",
-    "dxy_vs_gold_btc": "DXY sobre EMA200 bloquea recuperacion del Oro (-0.28 corr); BTC sostenido por correlacion con Petroleo (+0.61).",
-    "vix_signal": "Curva en contango profundo (VIX9D/VIX 0.849) senala complacencia extrema pese al US10Y sobre 5%.",
-    "watchlist_signal": "Plata en sobreventa severa (-10.56% vs EMA200) y US02Y en sobrecompra tecnica (RSI 73.0)."
+    "btc_vs_nasdaq": "Descorrelación negativa persistente (-0.28 a 30d); NQ corrige por tech mientras BTC consolida en rango.",
+    "dxy_vs_gold_btc": "DXY estable sobre EMA200 presiona a metales preciosos (Gold bajo EMA200) y mantiene neutral a BTC.",
+    "vix_signal": "Estructura en contango pronunciado (VIX9D/VIX 0.874) denota complacencia sin pánico institucional.",
+    "watchlist_signal": "Divergencia masiva de metales vs energía; Silver colapsa (-10% vs EMA200) mientras WTI lidera el mercado."
   },
   "catalysts": [
-    "Vencimiento de opciones de BTC en Deribit con Max Pain en $83,000 generando pin risk intradia.",
-    "US10Y consolidado en 5.089% presionando valoraciones de empresas tecnologicas en el Nasdaq.",
-    "US02Y con RSI14 en 73.0 senalando sobrecompra extrema en el tramo corto de la curva soberana.",
-    "Rotacion sectorial agresiva: XLE Energy lidera a 7 dias (+5.05%) vs XLK Tech colapsando (-6.06%).",
-    "Acumulacion comercial neta en crudo WTI (+8,095 contratos semanales) en reporte COT de la CFTC.",
-    "Commercials netos cortos en Nasdaq 100 (-67,194 contratos) distribuyendo ante inversores largos.",
-    "Funding rate neutral en BTC (0.0043%) y ratio Long/Short en 1.60 sin desbalance severo."
+    "Funding rate en BTCUSDT al 0.01% intradía (percentil 100.0 a 90 días) con riesgo de squeeze.",
+    "Max pain de Deribit para el vencimiento del 17 de octubre clavado en $82,000.00.",
+    "Rotación masiva de flujos: Energy líder (+5.05% 7d) vs Tech laggard (-6.06% 7d).",
+    "Commercials en COT incrementan +8,095 contratos netos largos en WTI.",
+    "Volumen anómalo en Plata (ratio 15.41x) marcando posible clímax de capitulación."
   ],
   "risks": [
-    "Pin risk en BTC alrededor de los $83,000 impidiendo expansion de rango intradiario.",
-    "Rotura del soporte dinamico de EMA55 en Nasdaq 100 (30,057.39) por caida del sector XLK.",
-    "Reversion por sobrecompra en tasas a 2 anos (US02Y RSI 73.0) generando squeeze en renta variable.",
-    "Sobreextension del crudo WTI (+14.38% sobre EMA200) vulnerable a retrocesos volatiles.",
-    "Iliquidez estructural pre-market con ratios de volumen diario inferiores al 0.25 en los futuros principales."
+    "Long squeeze en BTC si se perfora el cluster de liquidez de $81,640.90.",
+    "Contagio por aceleración de caída en el sector tecnológico estadounidense bajo mínimos semanales.",
+    "Presión macro si el rendimiento del US10Y supera de forma sostenida el 5.15%."
   ],
   "best_setup": {
     "asset": "OIL",
     "direction": "LONG",
-    "entry": 94.1,
-    "sl": 91.8,
-    "tp1": 98.3,
-    "tp2": 101.0,
-    "rr": 2.45,
-    "probability": 60,
+    "entry": 95.7,
+    "sl": 93.1,
+    "tp1": 98.32,
+    "tp2": 101.08,
+    "rr": 2.05,
+    "probability": 65,
     "confidence": 76,
     "quality": "A",
-    "ev_r": 0.86
+    "ev_r": 0.82
   },
   "no_trade_conditions": [
-    "BTC: Rango comprimido por debajo de Max Pain de opciones ($83,000) y volumen -23.84%.",
-    "SP500: ADX diario en 11.5 indica ausencia de tendencia; volumen ratio extremadamente bajo (0.06).",
-    "NASDAQ: Momentum diario bajista (-0.64) pero con BB% en 0.05 limitando R:R para shorts.",
-    "GOLD: Posicionado bajo todas las EMAs principales (EMA20, EMA55, EMA200) con ratio de volumen 0.21."
+    "BTC: Rango comprimido en Max Pain ($82,000) y funding excesivo.",
+    "SP500: Volumen ratio de 0.15 y conflicto sectorial interno.",
+    "NASDAQ: Colapso de momentum en sector tecnológico que choca con sobreventa en BB%.",
+    "GOLD: Estructura técnica bajista bajo EMA200 con rendimiento real de bonos al alza."
   ],
   "_schema": "rich"
 }
