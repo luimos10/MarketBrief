@@ -11,8 +11,9 @@ import re
 import logging
 import webbrowser
 import requests
-from datetime import datetime, timedelta, timezone
-from zoneinfo import ZoneInfo
+from datetime import datetime
+
+from modules.session import dated_name, session_snapshot
 
 logger = logging.getLogger("MarketBrief")
 
@@ -28,13 +29,6 @@ SPANISH_MONTHS = [
     "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
 ]
 
-# (nombre, zona horaria, hora_apertura, minuto_apertura)
-EXCHANGES = [
-    ("Tokio",      "Asia/Tokyo",        9, 0),
-    ("Londres",    "Europe/London",     8, 0),
-    ("Nueva York", "America/New_York",  9, 30),
-]
-
 
 def build_header_subtitle(now_utc: datetime | None = None) -> str:
     """Construye el subtítulo HTML del header: fecha, próxima bolsa en abrir
@@ -45,33 +39,13 @@ def build_header_subtitle(now_utc: datetime | None = None) -> str:
         🔔 Próxima apertura: NUEVA YORK
         Tokio 23:30 · Londres 14:30 · Nueva York 09:00
     """
-    now = now_utc or datetime.now(timezone.utc)
-    if now.tzinfo is None:
-        now = now.replace(tzinfo=timezone.utc)
-
-    clocks = []          # (nombre, "HH:MM")
-    next_open = None     # (delta, nombre, fecha_local)
-
-    for name, tz, oh, om in EXCHANGES:
-        local = now.astimezone(ZoneInfo(tz))
-        clocks.append((name, local.strftime("%H:%M")))
-
-        # Siguiente apertura: hoy si aún no pasó, si no el próximo día hábil.
-        candidate = local.replace(hour=oh, minute=om, second=0, microsecond=0)
-        if candidate <= local:
-            candidate += timedelta(days=1)
-        while candidate.weekday() >= 5:   # 5=sáb, 6=dom
-            candidate += timedelta(days=1)
-
-        delta = (candidate - local).total_seconds()
-        if next_open is None or delta < next_open[0]:
-            next_open = (delta, name, candidate)
+    snap = session_snapshot(now_utc)
 
     # Fecha en español, tomada de la bolsa que está por abrir (la más relevante).
-    ref_date = next_open[2]
+    ref_date = snap["date"]
     date_line = f"{ref_date.day:02d} de {SPANISH_MONTHS[ref_date.month]} {ref_date.year}"
-    session_name = next_open[1].upper()
-    clocks_line = " · ".join(f"{name} {hhmm}" for name, hhmm in clocks)
+    session_name = snap["name"].upper()
+    clocks_line = " · ".join(f"{name} {hhmm}" for name, hhmm in snap["clocks"])
 
     return (
         f'<span class="header-day">{date_line}</span>'
@@ -938,23 +912,44 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         var ov = p.overall || {{}};
         var total = (ov.hit || 0) + (ov.miss || 0);
         var rate = total > 0 ? ((ov.hit || 0) / total * 100).toFixed(1) : 'n/a';
-        html += '<div class="perf-summary">Hit rate global: <strong>' + rate + '%</strong> · ' +
+        html += '<div class="perf-summary">Hit rate global (decisiones): <strong>' + rate + '%</strong> · ' +
                 (ov.hit || 0) + ' hit / ' + (ov.miss || 0) + ' miss / ' + (ov.skip || 0) + ' skip</div>';
         if (ov.calibration) {{
             html += '<div class="perf-summary sub">Calibración: ' +
-                    '<strong>' + (ov.calibration.probability || 65) + '%</strong> probabilidad declarada vs ' +
-                    '<strong>' + (ov.calibration.actual || 0) + '%</strong> acierto real</div>';
+                    '<strong>' + (ov.calibration.probability || 0) + '%</strong> probabilidad declarada vs ' +
+                    '<strong>' + (ov.calibration.actual || 0) + '%</strong> acierto real' +
+                    (ov.calibration.brier != null ? ' · Brier: ' + ov.calibration.brier +
+                        ' (n=' + (ov.calibration.n || 0) + ')' : '') + '</div>';
+        }}
+        if (p.bias) {{
+            var bt = (p.bias.hit || 0) + (p.bias.miss || 0);
+            if (bt > 0) {{
+                html += '<div class="perf-summary sub">Sesgo (informativo): ' +
+                        ((p.bias.hit / bt) * 100).toFixed(1) + '% · ' +
+                        (p.bias.hit || 0) + ' hit / ' + (p.bias.miss || 0) + ' miss</div>';
+            }}
+        }}
+        if (p.execution) {{
+            var ex = p.execution;
+            var rmean = (ex.r_mean != null) ? (ex.r_mean + 'R') : 'n/a';
+            html += '<div class="perf-summary sub">Ejecución de niveles: ' +
+                    'TP1 ' + (ex.tp1 || 0) + ' · TP2 ' + (ex.tp2 || 0) +
+                    ' · Stop ' + (ex.stop || 0) + ' · no-fill ' + (ex.no_fill || 0) +
+                    ' · sin tocar ' + (ex.none || 0) +
+                    ' · R medio <strong>' + rmean + '</strong> (n=' + (ex.n_r || 0) + ')</div>';
         }}
         if (p.by_asset) {{
             html += '<div class="perf-table-scroll"><table class="perf-table"><thead><tr>' +
-                    '<th>Activo</th><th>Hit</th><th>Miss</th><th>Rate</th></tr></thead><tbody>';
+                    '<th>Activo</th><th>Hit</th><th>Miss</th><th>Rate</th><th>Stop</th><th>R</th></tr></thead><tbody>';
             var assets = Object.entries(p.by_asset).sort(function(a, b) {{ return a[0].localeCompare(b[0]); }});
             for (var i = 0; i < assets.length; i++) {{
                 var nm = assets[i][0]; var st = assets[i][1];
                 var tt = (st.hit || 0) + (st.miss || 0);
                 var rr = tt > 0 ? ((st.hit || 0) / tt * 100).toFixed(0) + '%' : '—';
+                var stops = (st.execution && st.execution.stop) ? st.execution.stop : (st.execution ? 0 : '—');
+                var rm = (st.execution && st.execution.r_mean != null) ? (st.execution.r_mean + 'R') : '—';
                 html += '<tr><td>' + nm + '</td><td>' + (st.hit || 0) + '</td><td>' +
-                        (st.miss || 0) + '</td><td>' + rr + '</td></tr>';
+                        (st.miss || 0) + '</td><td>' + rr + '</td><td>' + stops + '</td><td>' + rm + '</td></tr>';
             }}
             html += '</tbody></table></div>';
         }}
@@ -1405,13 +1400,12 @@ def save_html(
     Returns:
         Ruta del archivo generado
     """
-    date_str = datetime.now().strftime("%Y-%m-%d")
     header_subtitle = build_header_subtitle()
     # Fecha plana solo para el <title> de la pestaña del navegador.
     now_local = datetime.now()
     tab_date = f"{now_local.day:02d} de {SPANISH_MONTHS[now_local.month]} {now_local.year}"
 
-    filename = f"brief_{date_str}.html"
+    filename = dated_name("brief", "html")
     filepath = os.path.join(output_dir, filename)
 
     # Banner de contingencia (vacío en ejecución normal)
@@ -1471,9 +1465,8 @@ def save_html(
 
 
 def save_markdown(brief_text: str, output_dir: str) -> str:
-    """Guarda el brief como archivo Markdown."""
-    date_str = datetime.now().strftime("%Y-%m-%d")
-    filename = f"brief_{date_str}.md"
+    """Guarda el brief como archivo Markdown (fecha + sesión)."""
+    filename = dated_name("brief", "md")
     filepath = os.path.join(output_dir, filename)
 
     os.makedirs(output_dir, exist_ok=True)

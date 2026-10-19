@@ -158,7 +158,30 @@ def main():
     logger.info(f"Template: {os.path.basename(chosen_template_path)} "
                 f"(versión {chosen_version})")
     prompt_template = load_prompt_template(chosen_template_path)
-    full_prompt = build_full_prompt(market_data, prompt_template, chosen_template_path)
+
+    # ── Feedback de rendimiento medido (calibración del LLM) ──
+    perf_feedback = ""
+    feedback_enabled = os.getenv(
+        "PERF_FEEDBACK_ENABLED", "true").lower() in ("1", "true", "yes", "on")
+    if feedback_enabled:
+        try:
+            from modules.performance_feedback import build_feedback_block
+            perf_feedback = build_feedback_block(
+                config.OUTPUT_DIR,
+                days=int(os.getenv("PERF_FEEDBACK_DAYS", "14")),
+            )
+            if perf_feedback:
+                logger.info(
+                    f"Feedback de rendimiento inyectado "
+                    f"({len(perf_feedback)} caracteres)")
+            else:
+                logger.info("Sin historial evaluado — feedback omitido")
+        except Exception as e:
+            logger.warning(f"No se pudo construir el feedback de rendimiento: {e}")
+
+    full_prompt = build_full_prompt(
+        market_data, prompt_template, chosen_template_path,
+        feedback=perf_feedback)
     system_prompt = get_system_prompt()
 
     logger.info(f"Prompt construido ({len(full_prompt)} caracteres)")
@@ -216,7 +239,7 @@ def main():
     from modules.logbook import (
         extract_json_block, strip_json_block_from_md, normalize_structured,
         append_call, save_json_sidecar, build_market_snapshot,
-        build_synthetic_structured,
+        build_synthetic_structured, build_feature_snapshot,
     )
 
     ai_label = f"{used_provider}:{used_model}"
@@ -244,9 +267,26 @@ def main():
         is_synthetic = True
 
     try:
+        from modules.decision_engine import apply_decision_engine
+        structured, dec_corrections = apply_decision_engine(
+            structured,
+            ai_label=ai_label,
+            prompt_version=getattr(config, "PROMPT_VERSION", ""),
+        )
+        for c in dec_corrections:
+            logger.warning(f"  [decision_engine] {c}")
+        if dec_corrections:
+            logger.info(
+                f"  Motor determinista aplicó {len(dec_corrections)} "
+                f"correcciones al structured")
+    except Exception as e:
+        logger.warning(f"  [decision_engine] Falló: {e}")
+
+    try:
         sidecar = save_json_sidecar(config.OUTPUT_DIR, structured)
         logger.info(f"  JSON sidecar: {sidecar}")
         snapshot = build_market_snapshot(market_data)
+        features = build_feature_snapshot(market_data, structured)
         calls_path = append_call(
             config.OUTPUT_DIR,
             structured,
@@ -256,9 +296,11 @@ def main():
                 "prompt_version": getattr(config, "PROMPT_VERSION", ""),
             },
             synthetic=is_synthetic,
+            features=features,
         )
         flag = " (synthetic)" if is_synthetic else ""
-        logger.info(f"  Logbook{flag}: {calls_path}")
+        logger.info(f"  Logbook{flag}: {calls_path} "
+                    f"(features: {len(features)} activos)")
     except Exception as e:
         logger.warning(f"  ✗ Logbook falló: {e}")
 

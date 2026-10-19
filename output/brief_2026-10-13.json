@@ -1,63 +1,241 @@
 {
-  "fecha": "2026-10-13",
-  "prompt_version": "v1.4",
-  "ai_model": "gemini",
-  "sesgo_global": "Alcista",
-  "mercado_lider": "SP500",
-  "principales": {
+  "report": {
+    "date": "Tuesday, 13 de October de 2026",
+    "market_bias": "Neutral",
+    "market_leader": "Mixto",
+    "model": "Institutional Quant Engine v1.4",
+    "prompt_version": "v1.4"
+  },
+  "regime": {
+    "primary": "Inflationary",
+    "secondary": "Calma extrema en volatilidad",
+    "confidence": null
+  },
+  "aggregate": {
+    "main_assets_average_bias": 14.2,
+    "decision": "WAIT"
+  },
+  "assets": {
     "BTC": {
-      "sesgo": "Alcista",
-      "precio_referencia": 83706.0,
-      "soporte": 81750.09,
-      "resistencia": 84352.0,
-      "invalidacion": 81033.66,
-      "setup": "continuacion"
+      "tier": "P",
+      "price": 83433.4,
+      "bias": 20,
+      "confidence": 52.0,
+      "signal_quality": "NO TRADE",
+      "decision": "WAIT",
+      "entry": null,
+      "stop": null,
+      "tp1": null,
+      "tp2": null,
+      "rr": null,
+      "probability": null,
+      "ev_r": null
     },
     "SP500": {
-      "sesgo": "Alcista",
-      "precio_referencia": 7846.75,
-      "soporte": 7783.0,
-      "resistencia": 7897.5,
-      "invalidacion": 7701.83,
-      "setup": "continuacion"
+      "tier": "P",
+      "price": 7857.25,
+      "bias": 46,
+      "confidence": 70.0,
+      "signal_quality": "B",
+      "decision": "LONG",
+      "entry": 7800.0,
+      "stop": 7750.0,
+      "tp1": 7856.0,
+      "tp2": 7895.0,
+      "rr": 2.12,
+      "probability": 60.0,
+      "ev_r": null
     },
     "NASDAQ": {
-      "sesgo": "Neutral",
-      "precio_referencia": 30650.5,
-      "soporte": 30605.5,
-      "resistencia": 31521.0,
-      "invalidacion": 30041.49,
-      "setup": "none"
+      "tier": "P",
+      "price": 30749.75,
+      "bias": 20,
+      "confidence": 54.0,
+      "signal_quality": "NO TRADE",
+      "decision": "WAIT",
+      "entry": null,
+      "stop": null,
+      "tp1": null,
+      "tp2": null,
+      "rr": null,
+      "probability": null,
+      "ev_r": null
     },
     "GOLD": {
-      "sesgo": "Bajista",
-      "precio_referencia": 4212.0,
-      "soporte": 4091.2,
-      "resistencia": 4242.29,
-      "invalidacion": 4310.83,
-      "setup": "continuacion"
+      "tier": "P",
+      "price": 4211.6,
+      "bias": -20,
+      "confidence": 58.0,
+      "signal_quality": "C",
+      "decision": "SHORT",
+      "entry": 4242.0,
+      "stop": 4268.0,
+      "tp1": 4197.0,
+      "tp2": 4120.0,
+      "rr": 2.4,
+      "probability": 55.0,
+      "ev_r": null
     },
     "OIL": {
-      "sesgo": "Alcista",
-      "precio_referencia": 92.56,
-      "soporte": 87.96,
-      "resistencia": 94.36,
-      "invalidacion": 90.11,
-      "setup": "continuacion"
-    }
-  },
-  "macro_context": {
+      "tier": "P",
+      "price": 92.08,
+      "bias": 25,
+      "confidence": 61.0,
+      "signal_quality": "C",
+      "decision": "LONG",
+      "entry": 92.2,
+      "stop": 90.8,
+      "tp1": 93.35,
+      "tp2": 94.3,
+      "rr": 1.53,
+      "probability": 55.0,
+      "ev_r": null
+    },
     "DXY": {
-      "sesgo": "Alcista",
-      "nivel": 102.416
+      "tier": "M",
+      "price": 102.308,
+      "bias": 47,
+      "confidence": null,
+      "signal_quality": null,
+      "decision": null,
+      "entry": null,
+      "stop": null,
+      "tp1": null,
+      "tp2": null,
+      "rr": null,
+      "probability": null,
+      "ev_r": null
     },
     "VIX": {
-      "sesgo": "Bajista",
-      "nivel": 15.21
+      "tier": "M",
+      "price": 15.4,
+      "bias": -46,
+      "confidence": null,
+      "signal_quality": null,
+      "decision": null,
+      "entry": null,
+      "stop": null,
+      "tp1": null,
+      "tp2": null,
+      "rr": null,
+      "probability": null,
+      "ev_r": null
     },
     "US10Y": {
-      "sesgo": "Alcista",
-      "nivel": 5.24
+      "tier": "M",
+      "price": 5.24,
+      "bias": 35,
+      "confidence": null,
+      "signal_quality": null,
+      "decision": null,
+      "entry": null,
+      "stop": null,
+      "tp1": null,
+      "tp2": null,
+      "rr": null,
+      "probability": null,
+      "ev_r": null
+    },
+    "ETH": {
+      "tier": "W",
+      "price": 2509.76,
+      "bias": 5,
+      "confidence": null,
+      "signal_quality": null,
+      "decision": null,
+      "entry": null,
+      "stop": null,
+      "tp1": null,
+      "tp2": null,
+      "rr": null,
+      "probability": null,
+      "ev_r": null
+    },
+    "SOL": {
+      "tier": "W",
+      "price": 107.35,
+      "bias": 4,
+      "confidence": null,
+      "signal_quality": null,
+      "decision": null,
+      "entry": null,
+      "stop": null,
+      "tp1": null,
+      "tp2": null,
+      "rr": null,
+      "probability": null,
+      "ev_r": null
+    },
+    "SILVER": {
+      "tier": "W",
+      "price": 60.73,
+      "bias": -46,
+      "confidence": null,
+      "signal_quality": null,
+      "decision": null,
+      "entry": null,
+      "stop": null,
+      "tp1": null,
+      "tp2": null,
+      "rr": null,
+      "probability": null,
+      "ev_r": null
+    },
+    "US02Y": {
+      "tier": "W",
+      "price": 4.05,
+      "bias": 31,
+      "confidence": null,
+      "signal_quality": null,
+      "decision": null,
+      "entry": null,
+      "stop": null,
+      "tp1": null,
+      "tp2": null,
+      "rr": null,
+      "probability": null,
+      "ev_r": null
     }
-  }
+  },
+  "intermarket": {
+    "btc_vs_nasdaq": "Correlación plana 30d (-0.11); NQ cede por rotación en XLK mientras BTC comprime rango sobre EMA20 diaria.",
+    "dxy_vs_gold_btc": "DXY en 102.308 con tendencia fuerte presiona al Oro bajo su EMA200 y limita la expansión de múltiplos en BTC.",
+    "vix_signal": "Estructura en contango pronunciado (VIX9D/VIX: 0.758, VIX: 15.4) denota complacencia y ausencia de demanda de puts.",
+    "watchlist_signal": "Posicionamiento minorista sobrecargado en largos en ETH (L/S 2.84) y SOL (L/S 2.51) contrasta con distribución masiva en Silver (volumen 13.78x)."
+  },
+  "catalysts": [
+    "US10Y en 5.24% (+14.2% sobre EMA200) ejerce presión estructural de descuento de flujos de caja.",
+    "Funding rate en BTCUSDT en percentil 80 (0.0083%) con señal de sobrecalentamiento en posiciones largas.",
+    "Ratios Long/Short desbalanceados en ETHUSDT (2.84) y SOLUSDT (2.51) elevan riesgo de liquidaciones en cadena.",
+    "Zonas de rechazo superior institucional en BTC identificadas en 84134.20 y 84046.50 por mechas de volumen.",
+    "COT de Gold refleja rebalanceo comercial récord con +244,527 contratos semanales.",
+    "Commercials acumulan largos netos en SP500 (+43,065) y profundizan cortos netos en Nasdaq (-67,194)."
+  ],
+  "risks": [
+    "Ruptura de rendimientos del US10Y por encima del máximo de 5 días (5.364%).",
+    "Desapalancamiento forzado de posiciones largas en altcoins (ETH/SOL) por pérdida de soportes.",
+    "Reversión violenta de la complacencia en volatilidad si el VVIX (85.93) expande al alza.",
+    "Rotación sectorial agresiva fuera de tecnología (XLK) penalizando al Nasdaq a pesar de estabilidad en SP500.",
+    "Falta de volumen comprador en máximos de Bitcoin (volumen 4h en 9965 BTC vs promedio expansivo)."
+  ],
+  "best_setup": {
+    "asset": "SP500",
+    "direction": "LONG",
+    "entry": 7800.0,
+    "sl": 7750.0,
+    "tp1": 7856.0,
+    "tp2": 7895.0,
+    "rr": 2.12,
+    "probability": 60.0,
+    "confidence": 70.0,
+    "quality": "B",
+    "ev_r": null
+  },
+  "no_trade_conditions": [
+    "Bias score individual entre -25 y +25 sin confirmación de volumen relativo (>1.0x).",
+    "Operar rupturas alcistas en BTCUSDT dentro del clúster de resistencia 84000-84150.",
+    "Tomar posiciones largas en altcoins con ratios Long/Short superiores a 2.50.",
+    "Entradas en NQ mientras cotice por debajo de su VWAP diario (30881.90)."
+  ],
+  "_schema": "rich"
 }

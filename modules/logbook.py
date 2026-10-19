@@ -13,9 +13,14 @@ import json
 import logging
 import os
 import re
-from datetime import datetime
+import uuid
+from datetime import datetime, timezone
+
+from modules.session import session_slug
 
 logger = logging.getLogger("MarketBrief")
+
+SCHEMA_VERSION = 2
 
 
 # ═══════════════════════════════════════════════════════
@@ -61,6 +66,7 @@ def append_call(
     market_snapshot: dict,
     metadata: dict,
     synthetic: bool = False,
+    features: dict | None = None,
 ) -> str:
     """
     Agrega una entrada al logbook `output/calls.jsonl`.
@@ -73,16 +79,23 @@ def append_call(
         synthetic: si True, el JSON fue sintetizado por brief.py porque
             el LLM no lo produjo (fallback). Se marca en el logbook para
             poder filtrar/comparar luego.
+        features: vector compacto por activo al momento del call
+            (indicadores + geometría de niveles) para análisis posterior.
     """
     os.makedirs(output_dir, exist_ok=True)
     path = os.path.join(output_dir, "calls.jsonl")
 
+    now = datetime.now(timezone.utc)
     entry = {
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "call_id": uuid.uuid4().hex[:16],
+        "schema_version": SCHEMA_VERSION,
+        "timestamp": now.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+        "session": session_slug(),
         "ai_label": metadata.get("ai_label"),
         "prompt_version": metadata.get("prompt_version"),
         "structured": structured,
         "snapshot": market_snapshot,
+        "features": features or {},
         "synthetic": synthetic,
         "evaluated": False,  # se actualiza con evaluate_calls.py
     }
@@ -161,16 +174,39 @@ _LEGACY_TO_INTERNAL = {
 }
 
 
-def _decision_from(setup: str | None) -> str:
-    """Mapea setup legacy (continuacion/reversion/sweep/none) a decisión de trading."""
-    s = (setup or "").lower()
-    if s == "continuacion":
-        return "LONG"
-    if s == "reversion":
-        return "SHORT"
-    if s == "none" or not s:
+def _decision_from(setup: str | None, bias: str | None = None) -> str:
+    """Deriva la decisión operativa desde el setup legacy y el sesgo.
+
+    `continuacion` opera a favor del sesgo; `reversion`, en contra. Sin sesgo
+    direccional no hay trade: devolvemos WAIT en vez de asumir LONG.
+    """
+    s = (setup or "").strip().lower()
+    if not s or s in ("none", "wait", "no trade", "no_trade"):
         return "WAIT"
+
+    direction = _bias_to_sign(bias)
+    if direction == 0:
+        return "WAIT"
+
+    if s in ("continuacion", "continuation", "breakout", "sweep"):
+        return "LONG" if direction > 0 else "SHORT"
+    if s in ("reversion", "reversión", "reversal"):
+        return "SHORT" if direction > 0 else "LONG"
     return "WAIT"
+
+
+def _bias_to_sign(bias) -> int:
+    """+1 alcista, -1 bajista, 0 neutral/desconocido (acepta rich y legacy)."""
+    if bias is None or isinstance(bias, bool):
+        return 0
+    if isinstance(bias, (int, float)):
+        return 1 if bias > 0 else (-1 if bias < 0 else 0)
+    b = str(bias).strip().lower()
+    if b in ("alcista", "bull", "long", "a", "buy"):
+        return 1
+    if b in ("bajista", "bear", "short", "b", "sell"):
+        return -1
+    return 0
 
 
 def normalize_structured(structured: dict | None) -> dict | None:
@@ -215,7 +251,7 @@ def normalize_structured(structured: dict | None) -> dict | None:
             "bias": d.get("sesgo"),
             "confidence": d.get("confidence"),
             "signal_quality": d.get("signal_quality", ""),
-            "decision": _decision_from(d.get("setup")),
+            "decision": _decision_from(d.get("setup"), d.get("sesgo")),
             "entry": d.get("soporte") or d.get("entry"),
             "stop": d.get("invalidacion") or d.get("stop"),
             "tp1": d.get("tp1"),
@@ -374,10 +410,13 @@ def build_synthetic_structured(market_data: dict, prompt_version: str,
     }
 
 
-def save_json_sidecar(output_dir: str, structured: dict) -> str:
-    """Guarda el JSON estructurado como archivo timestamped paralelo al MD/HTML."""
+def save_json_sidecar(output_dir: str, structured: dict,
+                      session: str | None = None) -> str:
+    """Guarda el JSON estructurado con fecha y sesión (no se sobrescribe)."""
+    from modules.session import dated_name
+
     os.makedirs(output_dir, exist_ok=True)
-    fname = f"brief_{datetime.now().strftime('%Y-%m-%d')}.json"
+    fname = dated_name("brief", "json")
     path = os.path.join(output_dir, fname)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(structured, f, indent=2, default=str, ensure_ascii=False)
@@ -419,3 +458,95 @@ def build_market_snapshot(market_data: dict) -> dict:
                 snap["bias"][asset] = int(b["score"])
 
     return snap
+
+
+# ═══════════════════════════════════════════════════════
+# FEATURES POR CALL (aprendizaje posterior)
+# ═══════════════════════════════════════════════════════
+
+# alias del esquema rico -> (categoría, clave interna en indicators/bias_scores)
+_FEATURE_INTERNAL = {
+    "BTC":    ("crypto",      "BTCUSDT"),
+    "ETH":    ("crypto",      "ETHUSDT"),
+    "SOL":    ("crypto",      "SOLUSDT"),
+    "SP500":  ("traditional", "S&P 500 (ES)"),
+    "NASDAQ": ("traditional", "Nasdaq 100 (NQ)"),
+    "GOLD":   ("traditional", "Gold (XAUUSD)"),
+    "SILVER": ("traditional", "Silver (XAGUSD)"),
+    "OIL":    ("traditional", "Crude Oil (WTI)"),
+    "DXY":    ("traditional", "DXY"),
+    "VIX":    ("traditional", "VIX"),
+    "US10Y":  ("traditional", "US10Y"),
+    "US02Y":  ("traditional", "US02Y"),
+}
+
+_FEATURE_IND_KEYS = (
+    "rsi14", "atr14_pct", "vol_realized_30d_pct", "max_drawdown_30d_pct",
+    "z_score_30d", "ema_alignment", "adx14", "trend_strength",
+    "macd_state", "bb_percent", "price_vs_ema200_pct",
+)
+
+
+def build_feature_snapshot(market_data: dict, structured: dict | None) -> dict:
+    """Vector compacto por activo para aprendizaje: indicadores pre-calculados
+    al momento del call + geometría de los niveles propuestos.
+
+    Se guarda en la entrada del logbook (`features`) y el evaluador lo copia
+    a las filas de resultado para analizar qué condiciones tienen edge.
+    """
+    ind = market_data.get("indicators") or {}
+    ind_crypto = ind.get("crypto") or {}
+    ind_trad = ind.get("traditional") or {}
+    bias_root = market_data.get("bias_scores") or {}
+    assets = (structured or {}).get("assets") or {}
+
+    def _flt(v):
+        try:
+            return float(v) if v is not None else None
+        except (TypeError, ValueError):
+            return None
+
+    features: dict[str, dict] = {}
+    for alias, d in assets.items():
+        if not isinstance(d, dict):
+            continue
+        cat, internal = _FEATURE_INTERNAL.get(alias, (None, None))
+        f: dict = {}
+
+        ind_dict = None
+        if cat == "crypto":
+            ind_dict = ind_crypto.get(f"{internal}_1d")
+        elif cat == "traditional":
+            ind_dict = ind_trad.get(internal)
+        if isinstance(ind_dict, dict) and "error" not in ind_dict:
+            for k in _FEATURE_IND_KEYS:
+                if ind_dict.get(k) is not None:
+                    f[k] = ind_dict[k]
+
+        b = (bias_root.get(cat) or {}).get(internal) if cat else None
+        if isinstance(b, dict) and "score" in b:
+            f["bias_score"] = int(b["score"])
+
+        entry = _flt(d.get("entry"))
+        stop = _flt(d.get("stop"))
+        tp1 = _flt(d.get("tp1"))
+        price = _flt(d.get("price"))
+        if entry and stop and entry != stop:
+            risk_pct = abs(entry - stop) / entry * 100
+            f["risk_pct"] = round(risk_pct, 2)
+            atr_pct = _flt(f.get("atr14_pct"))
+            if atr_pct and atr_pct > 0:
+                f["risk_atr"] = round(risk_pct / atr_pct, 2)
+            if tp1:
+                f["tp1_rr"] = round(abs(tp1 - entry) / abs(entry - stop), 2)
+        if entry and price:
+            f["entry_vs_price_pct"] = round((entry - price) / price * 100, 2)
+        if d.get("decision"):
+            f["decision"] = d["decision"]
+        if _flt(d.get("probability")) is not None:
+            f["probability"] = _flt(d.get("probability"))
+
+        if f:
+            features[alias] = f
+
+    return features

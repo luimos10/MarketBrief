@@ -70,7 +70,9 @@ YFINANCE_MACRO = {
     "VIX9D":   "^VIX9D",
     "VIX3M":   "^VIX3M",
     "VVIX":    "^VVIX",
-    "US02Y":   "^IRX",
+    # ^IRX es T-Bill 13 semanas, no el Treasury a 2 años. 2YY=F replica el
+    # yield del 2Y (CME), que es el que se usa para el spread 2s10s.
+    "US02Y":   "2YY=F",
     "US10Y":   "^TNX",
     "US30Y":   "^TYX",
 }

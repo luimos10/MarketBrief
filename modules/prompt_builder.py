@@ -511,12 +511,14 @@ def format_data_context(data: dict) -> str:
     return "\n".join(sections)
 
 
-def build_full_prompt(data: dict, prompt_template: str, template_path: str = "") -> str:
+def build_full_prompt(data: dict, prompt_template: str, template_path: str = "",
+                      feedback: str = "") -> str:
     """
     Construye el prompt final combinando:
     1. Instrucción del sistema
     2. Datos recolectados como contexto
     3. Template del briefing
+    4. Feedback de rendimiento medido (opcional, al final para que pese)
     """
 
     data_context = format_data_context(data)
@@ -616,6 +618,22 @@ confirmar máx 1-2 titulares relevantes. NO buscar análisis técnico (ya lo
 tienes pre-calculado).
 
 Español, Markdown limpio."""
+
+    if feedback:
+        full_prompt += f"""
+
+═══════════════════════════════════════════════════════════════════════
+## FEEDBACK MEDIDO DEL SISTEMA (datos reales — calibración obligatoria)
+═══════════════════════════════════════════════════════════════════════
+
+{feedback}
+
+Instrucciones sobre el feedback:
+- Ajusta tus `probability` declaradas a la baja si la calibración muestra
+  sobreconfianza; nunca declares más de +10pp sobre el hit rate real.
+- NO repitas patrones que la medición marca como perdedores (p.ej. stops
+  demasiado ajustados o entradas que requieren fill exacto).
+- Si el edge medido del patrón es negativo, prefiere NO TRADE y dilo."""
 
     return full_prompt
 

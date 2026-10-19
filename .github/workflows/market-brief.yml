@@ -19,6 +19,7 @@ permissions:
 jobs:
   brief:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -28,7 +29,20 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          pip install -r requirements.txt || (sleep 10 && pip install -r requirements.txt)
+
+      - name: Run tests
+        run: python -m pytest -q
+
+      # Evaluar antes de generar el brief para que el dashboard de rendimiento
+      # del HTML use las métricas recién calculadas. Un fallo del evaluador no
+      # debe bloquear la entrega del brief.
+      - name: Evaluate pending calls
+        continue-on-error: true
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+        run: python evaluate_calls.py --write
 
       - name: Generate & deliver brief
         env:
@@ -42,13 +56,16 @@ jobs:
           FINNHUB_API_KEY:     ${{ secrets.FINNHUB_API_KEY }}
         run: python brief.py --telegram --no-open
 
-      - name: Commit logbook (calls.jsonl + sidecars)
+      - name: Commit logbook (calls.jsonl + sidecars + perf)
+        if: always()
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add output/ 2>/dev/null || true
-          git diff --cached --quiet || git commit -m "brief: $(date -u +%FT%TZ) [skip ci]"
-          git push
+          git diff --cached --quiet && exit 0
+          git commit -m "brief: $(date -u +%FT%TZ) [skip ci]"
+          git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
 
       # Aviso si algo falla (Gemini 503 persistente, geobloqueo, etc.). Sin esto,
       # un fallo solo se ve en la pestaña Actions y pasa desapercibido.

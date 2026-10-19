@@ -118,13 +118,15 @@ Cada corrida (manual o programada) produce un informe institucional con:
 Cache layer (diskcache): TTL por categoría
    yfinance_daily=1h | crypto_realtime=60s | funding_history=30min | macro=6h
 
-Loop de rendimiento (offline, no bloquea la generación del brief):
+Loop de rendimiento (offline; en CI corre antes del brief y no lo bloquea):
    evaluate_calls.py
-      → modules/evaluator.py   (sesgo + niveles entry/stop/tp1/tp2 sobre
-                                velas horarias Binance / yfinance)
-      → output/eval_results.jsonl   detalle por call
+      → modules/evaluator.py   (decisión operativa al cierre del horizonte +
+                                niveles entry/stop/tp sobre velas Binance/yfinance)
+      → output/eval_results.jsonl   detalle por call (sólo filas v2)
       → output/perf.json            agregado → dashboard HTML (brief.py lo lee)
       → con --write: calls.jsonl    marca evaluated=true + eval[]
+   modules/performance_feedback.py
+      → resumen del rendimiento real → prompt (calibración del LLM)
 ```
 
 ---
@@ -208,7 +210,13 @@ Tiempo total típico: **10-15s en cold cache, <1s en warm cache.**
      `catalysts`, `risks`, `best_setup`, `no_trade_conditions`), con
      backward-compat para los esquemas legacy v1.4 (`principales`+
      `macro_context`) y v1.3 (`activos`).
-   - Lo guarda como `output/brief_YYYY-MM-DD.json` (sidecar).
+   - Lo guarda como `output/brief_YYYY-MM-DD_<sesión>.json` (sidecar, una
+     sesión por corrida: `tokio`, `londres` o `ny`).
+   - **Motor determinista** (`modules/decision_engine.py`): recalcula `rr` y
+     `ev_r` desde entry/stop/tp1/tp2, `aggregate` desde los activos tier P,
+     normaliza `decision` y marca `levels_valid=false` si los niveles son
+     incoherentes. Las correcciones quedan en
+     `structured._decision_engine.corrections`.
    - Agrega una línea a `output/calls.jsonl` con: timestamp, ai_label,
      prompt_version, structured, snapshot (precios + bias scores al momento),
      `synthetic` y `evaluated=false`.
@@ -238,7 +246,7 @@ Tiempo total típico: **10-15s en cold cache, <1s en warm cache.**
 MarketBrief/
 ├── brief.py                       # Orquestador principal (CLI entry)
 ├── config.py                      # Variables, símbolos, paths, timezone
-├── evaluate_calls.py              # CLI del evaluador v2 (dirección + niveles)
+├── evaluate_calls.py              # CLI del evaluador v3 (decisión + niveles + R)
 ├── prompt_template.txt            # Template v1 (A/B)
 ├── prompt_template_v2.txt         # Template v2 (A/B testing)
 ├── Prompt Maestro — … .md         # Template por defecto (esquema rico)
@@ -259,13 +267,19 @@ MarketBrief/
 │   ├── prompt_builder.py          # Contexto sanitizado + esquema JSON
 │   ├── brief_generator.py         # Gemini + cadena de fallback (modelos Gemini)
 │   ├── delivery.py                # MD parser, HTML + dashboard, Telegram
-│   ├── evaluator.py               # Eval v2: dirección, niveles, R:R, calibración
+│   ├── evaluator.py               # Eval v3: decisión al horizonte, niveles, R, calibración
+│   ├── decision_engine.py         # Motor determinista: rr/ev_r/aggregate/decision
+│   ├── performance_feedback.py    # Feedback de rendimiento real → prompt
+│   ├── session.py                 # Sesiones Tokio/Londres/NY + nombres con fecha
 │   └── logbook.py                 # JSON rico normalizado + sidecar + calls.jsonl
 │
+├── tests/                         # pytest (lógica sin red)
+├── conftest.py                    # Raíz en sys.path para pytest
+│
 ├── output/                        # Briefs generados + logbook
-│   ├── brief_YYYY-MM-DD.md
-│   ├── brief_YYYY-MM-DD.html      # Incluye dashboard de rendimiento
-│   ├── brief_YYYY-MM-DD.json      # Sidecar JSON estructurado
+│   ├── brief_YYYY-MM-DD_<sesión>.md
+│   ├── brief_YYYY-MM-DD_<sesión>.html   # Incluye dashboard de rendimiento
+│   ├── brief_YYYY-MM-DD_<sesión>.json   # Sidecar JSON estructurado
 │   ├── calls.jsonl                # Append-only logbook (evaluated/write-back)
 │   ├── eval_results.jsonl         # Detalle de la última evaluación
 │   └── perf.json                  # Agregado de rendimiento (dashboard)
@@ -408,9 +422,9 @@ Cada corrida produce:
 
 | Archivo | Contenido |
 |---------|-----------|
-| `output/brief_YYYY-MM-DD.md` | Brief en Markdown (siempre, respaldo) |
-| `output/brief_YYYY-MM-DD.html` | Brief en HTML con dashboard de sesgo + rendimiento (si `--html`, `--telegram` o `--both`) |
-| `output/brief_YYYY-MM-DD.json` | Sidecar JSON estructurado (esquema rico, normalizado) |
+| `output/brief_YYYY-MM-DD_<sesión>.md` | Brief en Markdown (siempre, respaldo) |
+| `output/brief_YYYY-MM-DD_<sesión>.html` | Brief en HTML con dashboard de sesgo + rendimiento (si `--html`, `--telegram` o `--both`) |
+| `output/brief_YYYY-MM-DD_<sesión>.json` | Sidecar JSON estructurado (esquema rico, normalizado) |
 | `output/calls.jsonl` | Append-only logbook acumulado (con `evaluated` / `eval`) |
 | `output/eval_results.jsonl` | Detalle de la última corrida de `evaluate_calls.py` |
 | `output/perf.json` | Agregado de rendimiento (dashboard del HTML) |
@@ -466,20 +480,28 @@ Cada brief genera una entrada en `output/calls.jsonl` con:
 - `synthetic` (si el JSON fue sintetizado por el fallback)
 - `evaluated` (lo marca el evaluador; `false` hasta entonces)
 
-### Evaluador v2 (`evaluate_calls.py` + `modules/evaluator.py`)
+### Evaluador v3 (`evaluate_calls.py` + `modules/evaluator.py`)
 
-Además de la dirección del sesgo, valida la **ejecución de niveles** sobre
-velas horarias posteriores al call (Binance para crypto, yfinance para el resto):
+Mide la **decisión operativa** (`LONG`/`SHORT`) al cierre de un horizonte fijo
+(`call_ts + horizon`), no el movimiento "alguna vez después". El sesgo
+(`bias`) se evalúa aparte como métrica informativa.
 
-- Dirección del sesgo (movimiento real vs snapshot).
-- Ejecución: `entry`/`stop`/`tp1`/`tp2` → `outcome` (`tp1` | `tp2` | `stop` | `none`).
-- R:R logrado (`r_realized`, `rr_hit`) y calibración (probabilidad/confianza
-  declarada por el LLM vs acierto real).
+- `complete=false` (ventana aún abierta) → no se puntúa.
+- `WAIT`/`NO TRADE` no son calls operables → skip (no inflan el hit rate).
+- Ejecución de niveles con fill obligatorio (`low ≤ entry ≤ high`), TP antes
+  que SL salvo empate en la misma vela (gana el stop, criterio conservador) y
+  primer TP cierra la posición (sin runner).
+- Costos por activo (spread/slippage) restados del R: `r_realized`.
+- Yields (`US10Y`/`US02Y`) se miden en puntos porcentuales, no en % relativo,
+  y usan velas diarias (`2YY=F` para el 2Y).
+- Guard de anomalías: un movimiento imposible para el activo (p.ej. mezclar
+  `^IRX` con `2YY=F`) se marca como `movimiento anómalo` y no se puntúa.
+- Calibración sólo con `probability` declarada (Brier); `confidence` no se usa.
 - Salidas: reporte en consola, `output/perf.json`, `output/eval_results.jsonl`
   y, con `--write`, el write-back a `calls.jsonl`.
 
 ```powershell
-# Evaluar (>=20h de antigüedad) y persistir perf.json + eval_results.jsonl
+# Evaluar calls cerradas (>=24h) y recalcular perf.json + eval_results.jsonl
 .\venv\Scripts\python.exe evaluate_calls.py
 
 # Write-back: marca evaluated=true y adjunta eval[] en calls.jsonl
@@ -488,57 +510,88 @@ velas horarias posteriores al call (Binance para crypto, yfinance para el resto)
 # Solo los últimos 7 días
 .\venv\Scripts\python.exe evaluate_calls.py --last 7
 
-# Ventana de validación de niveles en horas (default 24)
+# Ventana de evaluación en horas (default 24)
 .\venv\Scripts\python.exe evaluate_calls.py --horizon 48
 
-# Edad mínima requerida (default 20h)
-.\venv\Scripts\python.exe evaluate_calls.py --min-hours 24
+# Edad mínima requerida (default = horizon, evita ventanas incompletas)
+.\venv\Scripts\python.exe evaluate_calls.py --min-hours 12
 
 # Solo dirección (omite la validación de niveles)
 .\venv\Scripts\python.exe evaluate_calls.py --no-levels
+
+# Filtrar por sesión (tokio|londres|ny)
+.\venv\Scripts\python.exe evaluate_calls.py --sessions ny
 ```
 
 Output (consola):
 
 ```
-RESULTADO GLOBAL (dirección del sesgo)
-  Total: hit= 18 miss= 10 skip=  2  →  64.3%
+RESULTADO ACUMULADO (decisión operativa al cierre del horizonte)
+  Total: hit=  6 miss= 12 skip= 26  →  33.3%
+  Calibración: 56.7% declarada vs 33.3% real · Brier=0.255 (n=3)
+  Sesgo (informativo): hit= 10 miss= 32 skip=  2  →  23.8%
+  Ejecución: tp1=1 tp2=0 stop=2 no_fill=10 pending=0 none=3
+  R medio: -0.511 (n=3, suma=-1.53)
 
-POR ACTIVO
-  BTC       hit=  6 miss=  2 skip=  0  →  75.0%   [niveles] tp1=3 tp2=1 stop=1 sin-tocar=2
-  ETH       hit=  4 miss=  3 skip=  0  →  57.1%
-  NASDAQ    hit=  5 miss=  1 skip=  1  →  83.3%
+POR ACTIVO / POR PROMPT VERSION / POR SESIÓN
   ...
-
-POR PROMPT VERSION (A/B)
-  v1.2      hit=  9 miss=  6 skip=  1  →  60.0%
-  v2.0      hit=  9 miss=  4 skip=  1  →  69.2%
 ```
 
-### Criterio de hit/miss (dirección)
+### Criterio de hit/miss (decisión)
 
-- Sesgo **Alcista** → hit si precio subió >0.5% desde snapshot.
-- Sesgo **Bajista** → hit si precio bajó >0.5%.
-- Sesgo **Neutral** → hit si movimiento absoluto ≤0.5%.
+- `LONG` → hit si `move > threshold + cost` del activo.
+- `SHORT` → hit si `move < -(threshold + cost)`.
+- `WAIT`/`NO TRADE`/`UNKNOWN` → skip ("sin decisión operativa").
+- Umbrales/costos por activo en `ASSET_EVAL_CONFIG` (`modules/evaluator.py`).
 
 ### Criterio de ejecución de niveles
 
-- La dirección del setup se infiere del stop: si `stop > entry` es **SHORT**
-  (SL arriba); en caso contrario **LONG**.
-- Se recorre la ventana (`--horizon` horas desde el call) sobre las velas
-  horarias y gana el primer nivel tocado:
-  - **LONG**: `tp1` si `high ≥ tp1`, `tp2` si `high ≥ tp2`, `stop` si `low ≤ stop`.
-  - **SHORT**: `tp1` si `low ≤ tp1`, `tp2` si `low ≤ tp2`, `stop` si `high ≥ stop`.
-- Resultado: `outcome`, `r_realized` (`-1.0` si saltó el stop, el R:R declarado
-  si alcanzó TP), `rr_hit` y `level_hit` (True/False/None si aún no se tocó).
-- Activos con historia horaria: BTC/ETH/SOL (Binance) + SP500/NASDAQ/GOLD/OIL/
-  DXY/VIX/SILVER/US10Y/US02Y (yfinance).
+- La dirección se toma de `decision` (legacy: inferida de entry/stop, o del
+  setup+sesgo al normalizar).
+- Fill obligatorio: la vela debe operar el `entry`; si nunca lo toca →
+  `no_fill` (no cuenta como acierto direccional del trade).
+- Conservador: si stop y TP tocan la misma vela, gana el stop.
+- `r_realized` = R:R al primer TP alcanzado (sin runner) − `cost_r`.
+- Activos con historia: BTC/ETH/SOL (Binance) + SP500/NASDAQ/GOLD/OIL/DXY/VIX/
+  SILVER (yfinance 1h) y US10Y/US02Y (yfinance diario).
 
 ### Calibración
 
 `perf.json` incluye `calibration`: la `probability` media declarada por el LLM
-vs el `actual` (hit rate real). El dashboard del HTML la muestra bajo el hit
-rate global. Una `probability` alta con `actual` bajo indica sobreconfianza.
+vs el `actual` (hit rate real) y el Brier score. Una `probability` alta con
+`actual` bajo indica sobreconfianza.
+
+### Features por call (aprendizaje)
+
+Cada entrada nueva del logbook guarda `features` por activo (`modules/logbook.py`
+→ `build_feature_snapshot`): RSI14, ATR%, EMA alignment, ADX, z-score, bias
+score, `risk_pct`/`risk_atr` (distancia entry→stop en ATR), `tp1_rr` y
+`entry_vs_price_pct`. El evaluador copia ese vector a las filas de resultado
+(prefijo `f_`), y `perf.json` agrega buckets por `probability`, `confidence`,
+`signal_quality`, `risk_atr` y `bias_score` para ver qué condiciones tienen edge
+(además de la ejecución por activo: TP1/Stop/R medio).
+
+### Feedback al prompt (loop de calibración)
+
+Antes de generar el brief, `modules/performance_feedback.py` resume el
+rendimiento real reciente (`eval_results.jsonl`) y lo inyecta al final del
+prompt: hit rate por decisión, ejecución de niveles, R medio, calibración y
+reglas obligatorias (p.ej. "el 66% de los niveles nunca se llenó: evita
+entradas que requieren retroceso exacto"). El LLM debe calibrar sus
+`probability` declaradas y no repetir patrones perdedores.
+
+- `PERF_FEEDBACK_ENABLED=true|false` (default `true`)
+- `PERF_FEEDBACK_DAYS=14` (si hay <50 filas en la ventana usa todo el historial)
+
+### Tests
+
+```powershell
+.\venv\Scripts\python.exe -m pytest -q
+```
+
+Cubren evaluador (horizonte/fill/stop conservador/costos/yields/buckets),
+motor determinista, sesiones, logbook/features y feedback. No requieren red.
+El workflow de GitHub Actions los corre antes de evaluar y generar el brief.
 
 ---
 
@@ -664,8 +717,12 @@ En GitHub → **Settings → Secrets and variables → Actions**:
 
 Como el runner es efímero, cada corrida hace `commit` de `output/`
 (`calls.jsonl` + sidecars JSON) de vuelta al repo, para que `evaluate_calls.py`
-acumule el historial entre ejecuciones. La entrega usa
-`python brief.py --telegram --no-open`.
+acumule el historial entre ejecuciones. El workflow evalúa primero
+(`python evaluate_calls.py --write`, con `continue-on-error` para no bloquear
+la entrega) y después genera el brief (`python brief.py --telegram --no-open`),
+de modo que el dashboard ya usa las métricas al día. El commit corre con
+`if: always()` (aunque el brief falle, eval/logbook se preservan) y hace
+`git pull --rebase --autostash` antes del push.
 
 ### Ejecución local (opcional, Windows Task Scheduler)
 
@@ -769,6 +826,8 @@ Remove-Item -Recurse -Force .\.cache
 | Hecho | Fase 5: despliegue en la nube (GitHub Actions) — 3 corridas/día (Tokio/Londres/NY) disparadas por cron-job.org (DST por zona horaria) + fallbacks de geobloqueo (spot mirror + OKX) |
 | Hecho | Fase 6: evaluador v2 (niveles/TP/SL/RR + calibración + write-back), `perf.json`/`eval_results.jsonl`, dashboard de rendimiento en HTML, matriz de correlación, z-score/drawdown/volatilidad, sanitización de contexto, `thinking_config` |
 | Hecho | Fase 7: cadena de IA **solo-Gemini** (fallback entre modelos + 2 pasadas con espera por cuota); eliminación total de Groq (código, config, workflow) |
+| Hecho | Fase 8 (P0): medición confiable — evaluador v3 (horizonte fijo, decisión operativa, fill obligatorio, stop conservador, costos, yields en pp), motor determinista, US02Y `2YY=F`, nombres por sesión, evaluación en CI, tests + pytest |
+| Hecho | Fase 9 (P1): loop de aprendizaje — features por call, buckets (probability/confidence/quality/risk-ATR/sesgo), ejecución por activo en dashboard, feedback medido al prompt, `call_id`/`session` en el logbook |
 | Pendiente | Alertas intradía (re-runs cada 30 min con bias score delta > threshold) |
 | Pendiente | Análisis de cohortes por modelo IA (hit rate por proveedor/modelo en el dashboard) |
 
@@ -779,12 +838,13 @@ Remove-Item -Recurse -Force .\.cache
 - `--no-search` afecta a Gemini (desactiva Google Search Grounding).
 - `thinking_config.thinking_budget=0` sólo aplica a modelos Gemini Flash/Lite/Flex
   soportados por el SDK; si el SDK no expone `ThinkingConfig`, se continúa sin él.
-- La validación de niveles del evaluador requiere historia horaria: sólo cubre
-  BTC/ETH/SOL (Binance) y SP500/NASDAQ/GOLD/OIL/DXY/VIX/SILVER/US10Y/US02Y
-  (yfinance). Para el resto sólo evalúa dirección. yfinance puede limitar el
-  intradía en rangos muy antiguos (`--horizon` acota la ventana).
-- La calibración del dashboard usa la `probability`/`confidence` declarada por el
-  LLM; si el modelo no la emite, no se calcula.
+- La validación de niveles del evaluador requiere historia: BTC/ETH/SOL
+  (Binance) y SP500/NASDAQ/GOLD/OIL/DXY/VIX/SILVER (yfinance 1h); US10Y/US02Y
+  usan velas diarias (`2YY=F`). Para el resto sólo evalúa dirección. yfinance
+  puede limitar el intradía en rangos muy antiguos (`--horizon` acota la
+  ventana).
+- La calibración del dashboard usa la `probability` declarada por el LLM; si el
+  modelo no la emite, no se calcula (ya no usa `confidence`).
 - El conversor Markdown→HTML es propio (sin dependencias). Soporta lo esencial
   (headers, bold, italic, listas, tablas, code blocks, blockquotes).
 - Las liquidaciones son **proxy** (wicks 1h) — ningún exchange expone
