@@ -200,7 +200,7 @@ def format_data_context(data: dict) -> str:
                 sections.append("\n".join(lines))
 
     # ── Datos de Correlación ──
-    sections.append("\n▸ DATOS PARA CORRELACIONES (retornos diarios 30d)")
+    sections.append("\n▸ DATOS PARA CORRELACIONES (retornos diarios recientes)")
     sections.append("-" * 40)
     for name, values in data.get("correlation_data", {}).items():
         if "error" in values:
@@ -214,7 +214,7 @@ def format_data_context(data: dict) -> str:
     # Matriz de correlación
     cm = data.get("correlation_data", {}).get("_corr_matrix") or {}
     if cm and "error" not in cm:
-        sections.append("\n  Matriz de correlación (Pearson, 30d, retornos):")
+        sections.append("\n  Matriz de correlación (Pearson, ventana reciente):")
         labels = sorted(cm.keys())
         if labels:
             sections.append("    " + " ".join(f"{l:5s}" for l in labels))

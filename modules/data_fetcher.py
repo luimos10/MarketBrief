@@ -33,8 +33,9 @@ def fetch_yfinance_data(symbols: dict) -> dict:
             # Datos intraday (últimos 5 días, intervalos de 1h)
             hist_1h = asset.history(period="5d", interval="1h")
 
-            # Datos daily (últimos 30 días)
-            hist_daily = asset.history(period="30d", interval="1d")
+            # Datos daily (2y: permite EMA200 en indicadores; los escalares
+            # de abajo usan tail() sobre esta misma serie)
+            hist_daily = asset.history(period="2y", interval="1d")
 
             if hist_daily.empty:
                 results[name] = {"error": "Sin datos disponibles"}
@@ -55,7 +56,7 @@ def fetch_yfinance_data(symbols: dict) -> dict:
             else:
                 change_7d = None
 
-            # Volumen promedio 20d
+            # Volumen promedio 20d — tail(20) usa la ventana más reciente
             vol_20d_avg = hist_daily["Volume"].tail(20).mean() if len(
                 hist_daily) >= 20 else hist_daily["Volume"].mean()
             vol_current = hist_daily["Volume"].iloc[-1]
@@ -91,6 +92,9 @@ def fetch_yfinance_data(symbols: dict) -> dict:
                 "high_5d": round(high_5d, 4),
                 "low_5d": round(low_5d, 4),
                 "precio_sobre_vwap": current_price > vwap,
+                # Serie completa para indicadores (se elimina del output
+                # final tras computarlos — ver compute_indicators_from_consolidated)
+                "_hist_daily_full": hist_daily,
             }
 
         except Exception as e:
@@ -560,12 +564,15 @@ def fetch_correlation_data() -> dict:
                         for i in range(1, len(closes))
                     ]
                 }
-                # Truncar para reducir tamaño de prompt (evitar 413 / límites)
+                # Truncar para reducir tamaño de prompt (evitar 413 / límites),
+                # conservando la ventana MÁS RECIENTE: los retornos ya se
+                # calcularon sobre los últimos 30 cierres, así que el final
+                # de la lista es lo actual.
                 try:
                     if len(results[name]["retornos_pct"]) > 15:
-                        results[name]["retornos_pct"] = results[name]["retornos_pct"][:15]
+                        results[name]["retornos_pct"] = results[name]["retornos_pct"][-15:]
                     if len(results[name]["closes_30d"]) > 16:
-                        results[name]["closes_30d"] = results[name]["closes_30d"][:16]
+                        results[name]["closes_30d"] = results[name]["closes_30d"][-16:]
                 except Exception:
                     pass
         except Exception as e:
@@ -863,17 +870,24 @@ def _compute_all_indicators_and_bias(consolidated: dict) -> dict:
         sym_data.pop("_ohlcv_4h_full", None)
 
     # ── TRADICIONALES (yfinance) ──
-    # Re-fetcheamos historiales diarios y computamos indicadores
-    # (yfinance ya fue llamado, pero solo guardó scalars. Re-bajamos
-    # historiales completos para los tradicionales clave.)
+    # Reutiliza la serie diaria 2y que ya bajó fetch_yfinance_data
+    # (guardada como _hist_daily_full) — evita re-descargar lo mismo.
     indicators_trad = {}
     bias_trad = {}
+    trad_markets = consolidated.get("traditional_markets", {})
     try:
         import yfinance as yf
         from config import YFINANCE_SYMBOLS
         for name, ticker in YFINANCE_SYMBOLS.items():
+            sym = trad_markets.get(name)
+            sym = sym if isinstance(sym, dict) else {}
+            hist = sym.pop("_hist_daily_full", None)
+            # Valida DataFrame (el fallback JSON del cache degrada a str)
+            if not hasattr(hist, "empty") or not hasattr(hist, "columns"):
+                hist = None
             try:
-                hist = yf.Ticker(ticker).history(period="2y", interval="1d")
+                if hist is None:
+                    hist = yf.Ticker(ticker).history(period="2y", interval="1d")
                 if hist.empty or len(hist) < 30:
                     continue
                 ind = compute_indicators(hist, label=name)

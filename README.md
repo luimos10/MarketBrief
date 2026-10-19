@@ -58,8 +58,8 @@ Cada corrida (manual o programada) produce un informe institucional con:
 - **Bias scores numéricos** -100..+100 por activo, con desglose por componente
   (trend, momentum, positioning, sentiment, volatility). La volatilidad pondera
   suavemente el z-score/drawdown (clamp ±0.3).
-- **Matriz de correlación** (Pearson, retornos diarios 30d) entre todos los
-  activos, inyectada en el contexto del LLM.
+- **Matriz de correlación** (Pearson, retornos diarios de la ventana más
+  reciente de 30d) entre todos los activos, inyectada en el contexto del LLM.
 - **Options flow BTC** (Deribit): PC ratio, max pain, strikes magnéticos cerca
   del spot, detección de pin day risk.
 - **COT report semanal** (CFTC): posicionamiento smart money vs speculators
@@ -149,7 +149,7 @@ Loop de rendimiento (offline; en CI corre antes del brief y no lo bloquea):
 | **Curva yield + liquidez Fed** | **FRED (St. Louis Fed)** | **6h cache** | **Spread 10Y-2Y inversion (85% recession indicator), RRP/TGA delta semanal (Fed drain vs liquidez)** |
 | **VIX term structure** | **Yahoo (^VIX9D, ^VIX3M, ^VVIX)** | **1h cache** | **Contango (calma) vs backwardation (stress) → regime shift 2-4 semanas** |
 | **Sector rotation** | **Yahoo (XLK, XLF, XLE, XLY, XLU)** | **1h cache** | **Risk-on (Tech lead) vs risk-off (Utilities lead) vs inflación (Energy lead)** |
-| **Correlación cruzada** | **Yahoo (retornos 30d)** | **1h cache** | **Matriz Pearson entre activos → confluencia/divergencia** |
+| **Correlación cruzada** | **Yahoo (retornos diarios recientes)** | **1h cache** | **Matriz Pearson entre activos → confluencia/divergencia** |
 
 Todas las fuentes corren en paralelo con `ThreadPoolExecutor(max_workers=8)`.
 Tiempo total típico: **10-15s en cold cache, <1s en warm cache.**
@@ -828,6 +828,7 @@ Remove-Item -Recurse -Force .\.cache
 | Hecho | Fase 7: cadena de IA **solo-Gemini** (fallback entre modelos + 2 pasadas con espera por cuota); eliminación total de Groq (código, config, workflow) |
 | Hecho | Fase 8 (P0): medición confiable — evaluador v3 (horizonte fijo, decisión operativa, fill obligatorio, stop conservador, costos, yields en pp), motor determinista, US02Y `2YY=F`, nombres por sesión, evaluación en CI, tests + pytest |
 | Hecho | Fase 9 (P1): loop de aprendizaje — features por call, buckets (probability/confidence/quality/risk-ATR/sesgo), ejecución por activo en dashboard, feedback medido al prompt, `call_id`/`session` en el logbook |
+| Hecho | Fase 10 (P2 parcial): HTML del brief escapa markup crudo de la IA (anti-XSS + `</script>` en payloads), correlación con ventana reciente (no la más vieja), reuso del historial diario 2y de yfinance (sin doble descarga) |
 | Pendiente | Alertas intradía (re-runs cada 30 min con bias score delta > threshold) |
 | Pendiente | Análisis de cohortes por modelo IA (hit rate por proveedor/modelo en el dashboard) |
 
@@ -846,7 +847,10 @@ Remove-Item -Recurse -Force .\.cache
 - La calibración del dashboard usa la `probability` declarada por el LLM; si el
   modelo no la emite, no se calcula (ya no usa `confidence`).
 - El conversor Markdown→HTML es propio (sin dependencias). Soporta lo esencial
-  (headers, bold, italic, listas, tablas, code blocks, blockquotes).
+  (headers, bold, italic, listas, tablas, code blocks, blockquotes). Cualquier
+  HTML crudo que emita la IA se **escapa** (se muestra literal): solo el
+  Markdown se convierte a markup, y los payloads JSON del dashboard neutralizan
+  `</script>` (anti-XSS).
 - Las liquidaciones son **proxy** (wicks 1h) — ningún exchange expone
   liquidaciones agregadas vía REST público gratuito. En local usa velas de
   Binance; en la nube, de OKX. Para data real se requeriría WebSocket

@@ -12,6 +12,7 @@ import logging
 import webbrowser
 import requests
 from datetime import datetime
+from html import escape as html_escape
 
 from modules.session import dated_name, session_snapshot
 
@@ -1298,10 +1299,11 @@ def markdown_to_html(md_text: str) -> str:
     """Conversión básica de Markdown a HTML sin dependencias extra."""
     html = md_text
 
-    # Escapar HTML existente (excepto emojis)
-    html = html.replace("&", "&")
-    html = html.replace("<", "<")
-    html = html.replace(">", ">")
+    # Escapar HTML crudo ANTES de las transformaciones: la IA (o contenido
+    # externo inyectado vía prompt) nunca debe emitir markup ejecutable.
+    html = html.replace("&", "&amp;")
+    html = html.replace("<", "&lt;")
+    html = html.replace(">", "&gt;")
 
     # Headers
     html = re.sub(r"^#### (.+)$", r"<h4>\1</h4>", html, flags=re.MULTILINE)
@@ -1321,8 +1323,8 @@ def markdown_to_html(md_text: str) -> str:
     html = re.sub(r"^-{3,}$", "<hr>", html, flags=re.MULTILINE)
     html = re.sub(r"^={3,}$", "<hr>", html, flags=re.MULTILINE)
 
-    # Blockquotes
-    html = re.sub(r"^> (.+)$", r"<blockquote>\1</blockquote>",
+    # Blockquotes ("> " ya fue escapado a "&gt; ")
+    html = re.sub(r"^&gt; (.+)$", r"<blockquote>\1</blockquote>",
                   html, flags=re.MULTILINE)
 
     # Tables (básico)
@@ -1429,6 +1431,8 @@ def save_html(
             brief_json = _extract_brief_json(brief_text)
     else:
         brief_json = _extract_brief_json(brief_text)
+    # Evitar breakout del <script>: "</..." dentro de strings JSON.
+    brief_json = brief_json.replace("</", "<\\/")
 
     # Payload de rendimiento histórico (C3) — opcional, ligero.
     if perf:
@@ -1438,6 +1442,7 @@ def save_html(
             perf_json = "null"
     else:
         perf_json = "null"
+    perf_json = perf_json.replace("</", "<\\/")
 
     html_content = markdown_to_html(brief_text)
     full_html = HTML_TEMPLATE.format(
@@ -1445,8 +1450,8 @@ def save_html(
         header_subtitle=header_subtitle,
         fallback_banner=fallback_banner,
         content=html_content,
-        report_title=report_title,
-        ai_label=ai_label,
+        report_title=html_escape(report_title),
+        ai_label=html_escape(ai_label),
         brief_json=brief_json,
         perf_json=perf_json,
     )
