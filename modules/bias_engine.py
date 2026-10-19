@@ -84,13 +84,13 @@ def _volatility_score(ind: dict) -> float:
         return 0.0
 
 
-def _positioning_score(funding_regime: dict, ls_ratio: float | None) -> float:
-    """Solo aplica a crypto. Funding extremo positivo = bearish (riesgo squeeze)."""
-    if not funding_regime or "error" in funding_regime:
-        ls_only = _ls_ratio_score(ls_ratio)
-        return ls_only
+def _positioning_score(funding_regime: dict, ls_ratio) -> float | None:
+    """Solo aplica a crypto. Funding extremo positivo = bearish (riesgo squeeze).
+    Devuelve None si no hay ningún dato de posicionamiento (no diluye)."""
+    pct = None
+    if funding_regime and "error" not in funding_regime:
+        pct = funding_regime.get("percentil_90d")
 
-    pct = funding_regime.get("percentil_90d")
     funding_score = 0.0
     if pct is not None:
         if pct > 90:
@@ -103,17 +103,25 @@ def _positioning_score(funding_regime: dict, ls_ratio: float | None) -> float:
             funding_score = +0.4
 
     ls_score = _ls_ratio_score(ls_ratio)
+
+    if pct is None and ls_score is None:
+        return None
+    if ls_score is None:
+        return funding_score
+    if pct is None:
+        return ls_score
     return 0.7 * funding_score + 0.3 * ls_score
 
 
-def _ls_ratio_score(ls: float | None) -> float:
-    """Long/Short ratio: > 2 = crowded longs (bearish), < 0.5 = crowded shorts (bullish)."""
+def _ls_ratio_score(ls: float | None) -> float | None:
+    """Long/Short ratio: > 2 = crowded longs (bearish), < 0.5 = crowded shorts (bullish).
+    None = sin dato (antes devolvía 0.0 y diluía el componente)."""
     if ls is None:
-        return 0.0
+        return None
     try:
         ls = float(ls)
     except (TypeError, ValueError):
-        return 0.0
+        return None
     if ls > 2.5:
         return -0.6
     if ls > 2.0:
@@ -125,17 +133,74 @@ def _ls_ratio_score(ls: float | None) -> float:
     return 0.0
 
 
-def _sentiment_score(fng: dict) -> float:
-    """Fear & Greed: 0=extreme fear (contrarian bullish), 100=extreme greed (contrarian bearish)."""
+def _sentiment_score(fng: dict) -> float | None:
+    """Fear & Greed: 0=extreme fear (contrarian bullish), 100=extreme greed (contrarian bearish).
+    None = sin dato (no diluye; el F&G de crypto no aplica a tradicionales)."""
     val = fng.get("value") if fng else None
     if val == "N/A" or val is None:
-        return 0.0
+        return None
     try:
         v = int(val)
     except (TypeError, ValueError):
-        return 0.0
+        return None
     # Mapeo lineal: 0..100 → +1..-1 (contrarian)
     return (50 - v) / 50.0
+
+
+# ═══════════════════════════════════════════════════════
+# AJUSTE DE PESOS POR RÉGIMEN / DATOS DISPONIBLES
+# ═══════════════════════════════════════════════════════
+
+def _move_weight(w: dict, dst: str, amount: int, src_keys: tuple) -> None:
+    """Mueve hasta 'amount' puntos hacia dst desde src_keys, sin bajar de 5."""
+    moved = 0
+    for k in src_keys:
+        if moved >= amount or k not in w:
+            continue
+        take = min(amount - moved, max(0, w[k] - 5))
+        w[k] -= take
+        moved += take
+    if moved:
+        w[dst] = w.get(dst, 0) + moved
+
+
+def _redistribute_weight(w: dict, amount: int, dst_keys: tuple) -> None:
+    """Reparte 'amount' puntos proporcionalmente entre dst_keys presentes."""
+    present = [k for k in dst_keys if k in w]
+    if not present or amount <= 0:
+        return
+    base = sum(w[k] for k in present)
+    if base <= 0:
+        for i, k in enumerate(present):
+            w[k] += amount // len(present) + (1 if i < amount % len(present) else 0)
+        return
+    remaining = amount
+    for i, k in enumerate(present):
+        if i == len(present) - 1:
+            share = remaining
+        else:
+            share = round(amount * w[k] / base)
+            remaining -= share
+        w[k] += share
+
+
+def _adapt_weights(w: dict, indicators: dict) -> None:
+    """Régimen por ADX: tendencia fuerte refuerza 'trend'; rango (ADX<15)
+    lo reduce a favor de osciladores (momentum/volatilidad)."""
+    adx = indicators.get("adx14")
+    try:
+        adx = float(adx) if adx is not None else None
+    except (TypeError, ValueError):
+        adx = None
+    if adx is None:
+        return
+    if adx >= 30:
+        _move_weight(w, "trend", 8, ("momentum", "sentiment", "volatility"))
+    elif adx >= 25:
+        _move_weight(w, "trend", 4, ("momentum", "sentiment"))
+    elif adx < 15:
+        _move_weight(w, "momentum", 4, ("trend",))
+        _move_weight(w, "volatility", 2, ("trend",))
 
 
 # ═══════════════════════════════════════════════════════
@@ -150,8 +215,12 @@ def compute_bias(indicators: dict,
     """
     Devuelve un score -100..+100 con el desglose por componente.
 
-    Para activos NO crypto, el peso de positioning se redistribuye en
-    trend (10) y momentum (10).
+    - Los pesos base (WEIGHTS) se adaptan al régimen por ADX: tendencia fuerte
+      (≥30) refuerza `trend`; rango (<15) lo reduce a favor de momentum/vol.
+    - Componentes sin dato (positioning sin funding/L-S, sentiment sin F&G) NO
+      diluyen el score: se eliminan y su peso se redistribuye.
+    - Para activos NO crypto, positioning no existe (sin funding/L-S): su peso
+      va a trend/momentum. El Fear & Greed de crypto no aplica a tradicionales.
     """
     if "error" in indicators:
         return {"score": 0, "error": indicators["error"]}
@@ -167,10 +236,21 @@ def compute_bias(indicators: dict,
         "trend":       _trend_score(indicators),
         "momentum":    _momentum_score(indicators),
         "volatility":  _volatility_score(indicators),
-        "sentiment":   _sentiment_score(fng or {}),
+        # El Fear & Greed disponible es el índice de CRYPTO: no aplica a
+        # tradicionales (XAUUSD/SP500/…), aunque el caller lo pase.
+        "sentiment":   _sentiment_score(fng or {}) if is_crypto else None,
     }
     if is_crypto:
         components["positioning"] = _positioning_score(funding_regime or {}, ls_ratio)
+
+    # Componentes sin dato: fuera, y su peso se reparte (evita dilución)
+    for key in ("sentiment", "positioning"):
+        if key in components and components[key] is None:
+            components.pop(key)
+            _redistribute_weight(weights, weights.pop(key, 0),
+                                 ("trend", "momentum", "volatility"))
+
+    _adapt_weights(weights, indicators)
 
     score = sum(weights[k] * components[k] for k in weights if k in components)
     score = max(-100, min(100, round(score)))

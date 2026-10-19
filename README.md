@@ -56,8 +56,12 @@ Cada corrida (manual o programada) produce un informe institucional con:
   ADX) más **z-score 30d, máximo drawdown 30d y volatilidad realizada 30d**,
   calculados localmente con pandas/numpy — el LLM ya no inventa niveles.
 - **Bias scores numéricos** -100..+100 por activo, con desglose por componente
-  (trend, momentum, positioning, sentiment, volatility). La volatilidad pondera
-  suavemente el z-score/drawdown (clamp ±0.3).
+  (trend, momentum, positioning, sentiment, volatility). Los pesos base se
+  **adaptan al régimen por ADX** (tendencia fuerte ≥30 refuerza `trend`;
+  rango <15 lo reduce a favor de momentum/volatilidad) y los componentes sin
+  dato no diluyen (su peso se redistribuye). El Fear & Greed es de **crypto**:
+  solo aplica a crypto. La volatilidad pondera suavemente el z-score/drawdown
+  (clamp ±0.3).
 - **Matriz de correlación** (Pearson, retornos diarios de la ventana más
   reciente de 30d) entre todos los activos, inyectada en el contexto del LLM.
 - **Options flow BTC** (Deribit): PC ratio, max pain, strikes magnéticos cerca
@@ -135,7 +139,7 @@ Loop de rendimiento (offline; en CI corre antes del brief y no lo bloquea):
 
 | Capa | Fuente | Frecuencia | Edge |
 |------|--------|------------|------|
-| Precios tradicionales | Yahoo Finance | 1h cache | Niveles, volumen, VWAP intradía |
+| Precios tradicionales | Yahoo Finance | 1h cache | Niveles, volumen (ratio de última vela completa + parcial de hoy marcado), VWAP intradía |
 | Crypto derivados | Binance Futures (ccxt) | 60s cache | OI, funding actual, L/S ratio, taker buy/sell |
 | Funding histórico | Binance fapi | 30min cache | Percentil 90d → detección de extremos crowded |
 | Liquidaciones 24h | Binance klines (wick proxy) | 5min cache | Zonas de stops barridos, smart money sweeps |
@@ -828,7 +832,7 @@ Remove-Item -Recurse -Force .\.cache
 | Hecho | Fase 7: cadena de IA **solo-Gemini** (fallback entre modelos + 2 pasadas con espera por cuota); eliminación total de Groq (código, config, workflow) |
 | Hecho | Fase 8 (P0): medición confiable — evaluador v3 (horizonte fijo, decisión operativa, fill obligatorio, stop conservador, costos, yields en pp), motor determinista, US02Y `2YY=F`, nombres por sesión, evaluación en CI, tests + pytest |
 | Hecho | Fase 9 (P1): loop de aprendizaje — features por call, buckets (probability/confidence/quality/risk-ATR/sesgo), ejecución por activo en dashboard, feedback medido al prompt, `call_id`/`session` en el logbook |
-| Hecho | Fase 10 (P2 parcial): HTML del brief escapa markup crudo de la IA (anti-XSS + `</script>` en payloads), correlación con ventana reciente (no la más vieja), reuso del historial diario 2y de yfinance (sin doble descarga) |
+| Hecho | Fase 10 (P2 parcial): HTML del brief escapa markup crudo de la IA (anti-XSS + `</script>` en payloads), correlación con ventana reciente (no la más vieja), reuso del historial diario 2y de yfinance (sin doble descarga), volumen diario parcial marcado (`vela_diaria_parcial` + ratio aparte), bias engine con pesos adaptativos por ADX y sin dilución por datos ausentes (F&G solo crypto) |
 | Pendiente | Alertas intradía (re-runs cada 30 min con bias score delta > threshold) |
 | Pendiente | Análisis de cohortes por modelo IA (hit rate por proveedor/modelo en el dashboard) |
 

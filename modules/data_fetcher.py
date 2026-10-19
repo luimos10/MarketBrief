@@ -18,6 +18,17 @@ from modules.cache import cached
 logger = logging.getLogger("MarketBrief")
 
 
+def _safe_int(value, default=0):
+    """int() tolerante a NaN/None/no numérico (volúmenes de índices)."""
+    try:
+        f = float(value)
+        if f != f:  # NaN
+            return default
+        return int(f)
+    except (TypeError, ValueError):
+        return default
+
+
 @cached("yfinance_daily")
 def fetch_yfinance_data(symbols: dict) -> dict:
     """
@@ -60,7 +71,30 @@ def fetch_yfinance_data(symbols: dict) -> dict:
             vol_20d_avg = hist_daily["Volume"].tail(20).mean() if len(
                 hist_daily) >= 20 else hist_daily["Volume"].mean()
             vol_current = hist_daily["Volume"].iloc[-1]
-            vol_ratio = vol_current / vol_20d_avg if vol_20d_avg > 0 else 0
+
+            # La última vela diaria puede ser la sesión EN CURSO (parcial):
+            # futuros casi todo el día, índices/equities durante premarket y
+            # sesión US. Compararla contra el promedio 20d completo subestima
+            # la participación; se usa la última vela COMPLETA para el ratio
+            # y se expone aparte el avance de hoy.
+            vela_parcial = False
+            try:
+                last_ts = hist_daily.index[-1]
+                tz = getattr(last_ts, "tzinfo", None)
+                now_ref = datetime.now(tz) if tz else datetime.now(timezone.utc)
+                vela_parcial = last_ts.date() == now_ref.date()
+            except Exception:
+                vela_parcial = False
+
+            vol_ratio_hoy = None
+            if vol_20d_avg > 0:
+                if vela_parcial and len(hist_daily) >= 2:
+                    vol_ratio = hist_daily["Volume"].iloc[-2] / vol_20d_avg
+                    vol_ratio_hoy = vol_current / vol_20d_avg
+                else:
+                    vol_ratio = vol_current / vol_20d_avg
+            else:
+                vol_ratio = 0
 
             # VWAP diario aproximado
             if not hist_1h.empty and len(hist_1h) > 0:
@@ -79,13 +113,18 @@ def fetch_yfinance_data(symbols: dict) -> dict:
             high_5d = hist_daily["High"].tail(5).max()
             low_5d = hist_daily["Low"].tail(5).min()
 
+            change_7d_pct = round(change_7d, 2) if (
+                change_7d is not None and change_7d == change_7d) else "N/A"
+
             results[name] = {
                 "precio_actual": round(current_price, 4),
                 "cambio_24h_pct": round(change_24h, 2),
-                "cambio_7d_pct": round(change_7d, 2) if change_7d else "N/A",
-                "volumen_actual": int(vol_current),
-                "volumen_avg_20d": int(vol_20d_avg),
+                "cambio_7d_pct": change_7d_pct,
+                "volumen_actual": _safe_int(vol_current, "N/A"),
+                "volumen_avg_20d": _safe_int(vol_20d_avg, "N/A"),
+                # Ratio sobre la última vela diaria COMPLETA (ver arriba)
                 "volumen_ratio": round(vol_ratio, 2),
+                "vela_diaria_parcial": vela_parcial,
                 "vwap_diario": round(vwap, 4),
                 "high_20d": round(high_20d, 4),
                 "low_20d": round(low_20d, 4),
@@ -96,6 +135,8 @@ def fetch_yfinance_data(symbols: dict) -> dict:
                 # final tras computarlos — ver compute_indicators_from_consolidated)
                 "_hist_daily_full": hist_daily,
             }
+            if vol_ratio_hoy is not None:
+                results[name]["volumen_hoy_parcial_ratio"] = round(vol_ratio_hoy, 2)
 
         except Exception as e:
             logger.error(f"Error obteniendo datos de {name}: {e}")
@@ -894,7 +935,9 @@ def _compute_all_indicators_and_bias(consolidated: dict) -> dict:
                 indicators_trad[name] = ind
                 bias = compute_bias(
                     ind, funding_regime=None, ls_ratio=None,
-                    fng=fng, is_crypto=False,
+                    # Fear & Greed es de crypto: no debe sesgar XAUUSD/SP500;
+                    # para tradicionales el componente sentiment se excluye.
+                    fng=None, is_crypto=False,
                 )
                 bias_trad[name] = bias
             except Exception as e:
