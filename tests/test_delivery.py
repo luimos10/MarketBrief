@@ -17,6 +17,18 @@ def test_markdown_blockquote_y_tabla():
     assert "<td>1</td>" in out
 
 
+def test_markdown_promueve_secciones_numeradas_a_h2():
+    out = markdown_to_html("### 3. APEX ASSET: BTC (BIAS & EXECUTION)\n\nTexto")
+    assert "<h2>3. APEX ASSET: BTC (BIAS &amp; EXECUTION)</h2>" in out
+    assert "<h3>3. APEX ASSET" not in out
+
+
+def test_markdown_deja_h3_no_numerados():
+    out = markdown_to_html("### Key Levels\n\nTexto")
+    assert "<h3>Key Levels</h3>" in out
+    assert "<h2>Key Levels</h2>" not in out
+
+
 def test_save_html_no_permite_breakout_de_script(tmp_path):
     structured = {"assets": {"BTC": {"nota": "</script><script>alert(1)</script>"}}}
     path = save_html(

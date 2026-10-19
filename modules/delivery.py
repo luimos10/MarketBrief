@@ -70,25 +70,29 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         :root {{
-            /* Dark graphite scale */
-            --bg:           #0b0f14;
-            --surface:      #121821;
-            --surface-2:    #18212c;
-            --surface-3:    #1e2a38;
-            --border:       #263241;
-            --border-soft:  #1b2633;
-            --border-focus: #38bdf8;
+            /* Institutional steel scale (dark) */
+            --bg:           #0a0e13;
+            --surface:      #10161d;
+            --surface-2:    #161f29;
+            --surface-3:    #1d2833;
+            --border:       #2a3644;
+            --border-soft:  #1c2630;
+            --border-focus: #5b9bff;
 
-            /* Text scale */
-            --text:         #e6edf3;
-            --text-muted:   #9ba8b7;
-            --text-dim:     #64748b;
+            /* Text scale (AA sobre --bg) */
+            --text:         #e8eef5;
+            --text-muted:   #a3b0c0;
+            --text-dim:     #7a8aa0;
 
             /* Functional accent and market states */
-            --accent:       #38bdf8;
-            --bull:         #34d399;
-            --bear:         #fb7185;
-            --neutral:      #fbbf24;
+            --accent:       #5b9bff;
+            --accent-rgb:   91, 155, 255;
+            --bull:         #34c777;
+            --bear:         #e5484d;
+            --neutral:      #8b9bb4;
+            --warning:      #f59e0b;
+            --warning-strong: #fde68a;
+            --grid:         rgba(42, 54, 68, 0.55);
 
             /* Spacing scale */
             --space-xs:     0.25rem;
@@ -149,7 +153,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         .section-card {{
             background: var(--surface);
             border: 1px solid var(--border);
-            border-left: 4px solid var(--accent);
+            border-left: 2px solid var(--border);
             border-radius: var(--radius-lg);
             padding: var(--space-xl);
             margin-bottom: 3.5rem;
@@ -160,6 +164,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         .section-card:last-child {{ margin-bottom: 0; }}
         .section-card:hover {{
             border-color: var(--border-focus);
+            border-left-color: var(--border-focus);
             box-shadow: var(--shadow-md);
         }}
 
@@ -188,8 +193,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             letter-spacing: 1.5px;
             text-transform: uppercase;
             color: var(--accent);
-            background: rgba(56, 189, 248, 0.12);
-            border: 1px solid rgba(56, 189, 248, 0.25);
+            background: rgba(var(--accent-rgb), 0.12);
+            border: 1px solid rgba(var(--accent-rgb), 0.3);
             padding: 0.2rem 0.6rem;
             border-radius: var(--radius-sm);
             white-space: nowrap;
@@ -259,7 +264,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             background: rgba(245, 158, 11, 0.10);
             border: 1px solid rgba(245, 158, 11, 0.40);
             border-radius: var(--radius-md);
-            color: #fbbf24;
+            color: var(--warning);
             padding: 9px 16px;
             margin: 14px auto 0 auto;
             max-width: 700px;
@@ -269,7 +274,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             gap: 8px;
             line-height: 1.4;
         }}
-        .fallback-banner strong {{ color: #fde68a; }}
+        .fallback-banner strong {{ color: var(--warning-strong); }}
 
         /* ─── DASHBOARD ─── */
         .dashboard-section {{ margin-bottom: 3.5rem; }}
@@ -300,7 +305,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             margin-top: -6px;
             font-size: 0.76rem;
         }}
-        .perf-summary strong {{ color: #fbbf24; }}
+        .perf-summary strong {{ color: var(--accent); }}
         .perf-table-scroll {{
             overflow-x: auto;
             margin-bottom: var(--space-md);
@@ -309,6 +314,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             width: 100%;
             border-collapse: collapse;
             font-size: 0.78rem;
+            font-variant-numeric: tabular-nums;
         }}
         .perf-table th, .perf-table td {{
             padding: 6px 10px;
@@ -320,6 +326,77 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             text-transform: uppercase;
             letter-spacing: 1px;
             font-size: 0.65rem;
+        }}
+        .perf-kpis {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: var(--space-sm);
+            margin: var(--space-md) 0;
+        }}
+        .perf-kpi {{
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: var(--space-sm) var(--space-md);
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }}
+        .perf-kpi .kpi-label {{
+            font-size: 0.6rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--text-dim);
+        }}
+        .perf-kpi .kpi-value {{
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--text);
+            font-variant-numeric: tabular-nums;
+        }}
+        .perf-kpi .kpi-sub {{
+            font-size: 0.66rem;
+            color: var(--text-muted);
+            font-variant-numeric: tabular-nums;
+        }}
+        .calib-block {{ margin: var(--space-sm) 0 var(--space-md); }}
+        .calib-track {{
+            position: relative;
+            height: 8px;
+            border-radius: 4px;
+            background: var(--surface-3);
+            overflow: hidden;
+        }}
+        .calib-declared {{
+            position: absolute;
+            inset: 0 auto 0 0;
+            background: rgba(var(--accent-rgb), 0.55);
+            border-radius: 4px;
+        }}
+        .calib-actual {{
+            position: absolute;
+            top: -3px;
+            bottom: -3px;
+            width: 3px;
+            background: var(--warning);
+            border-radius: 2px;
+        }}
+        .calib-legend {{
+            display: flex;
+            gap: var(--space-md);
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            margin-top: 6px;
+            flex-wrap: wrap;
+        }}
+        .calib-dot {{
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 2px;
+            margin-right: 5px;
+            vertical-align: middle;
         }}
 
         /* ─── ASSET CARDS ─── */
@@ -371,6 +448,76 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         .setup-long {{ background: rgba(52, 211, 153, 0.15); color: var(--bull); }}
         .setup-short {{ background: rgba(251, 113, 133, 0.15); color: var(--bear); }}
         .setup-wait {{ background: rgba(251, 191, 36, 0.15); color: var(--neutral); }}
+        .asset-bias {{
+            display: flex;
+            align-items: baseline;
+            gap: 0.35rem;
+            white-space: nowrap;
+        }}
+        .asset-bias-score {{
+            font-family: var(--font-mono);
+            font-size: 0.74rem;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }}
+        .asset-badges {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.3rem;
+        }}
+        .asset-chip {{
+            font-size: 0.6rem;
+            font-weight: 600;
+            letter-spacing: 0.4px;
+            color: var(--text-muted);
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            padding: 0.12rem 0.45rem;
+            border-radius: var(--radius-sm);
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+        }}
+        .asset-meter {{
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+            font-size: 0.62rem;
+            color: var(--text-dim);
+        }}
+        .asset-meter .meter-track {{
+            flex: 1;
+            height: 4px;
+            background: var(--surface-3);
+            border-radius: 2px;
+            overflow: hidden;
+        }}
+        .asset-meter .meter-fill {{
+            height: 100%;
+            border-radius: 2px;
+        }}
+        .asset-meter .meter-val {{
+            font-family: var(--font-mono);
+            color: var(--text-muted);
+            font-variant-numeric: tabular-nums;
+        }}
+        .asset-empty {{
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            padding: var(--space-xs) 0;
+            border-top: 1px solid var(--border-soft);
+            margin-top: var(--space-xs);
+        }}
+        button.asset-levels-toggle {{
+            background: none;
+            border-left: 0;
+            border-right: 0;
+            border-bottom: 0;
+            width: 100%;
+            font: inherit;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-align: left;
+        }}
         .asset-levels-toggle {{
             display: flex;
             align-items: center;
@@ -385,6 +532,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             transition: color 0.15s;
         }}
         .asset-levels-toggle:hover {{ color: var(--text); }}
+        .asset-levels-toggle:focus-visible {{
+            outline: 2px solid var(--border-focus);
+            outline-offset: 2px;
+            border-radius: var(--radius-sm);
+        }}
         .asset-levels-toggle .chevron {{
             flex-shrink: 0;
             transition: transform 0.2s ease;
@@ -548,20 +700,21 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             color: var(--text);
             font-weight: 500;
             white-space: nowrap;
+            font-variant-numeric: tabular-nums;
         }}
         .section-content td:first-child {{
             text-align: left;
-            font-weight: 700;
-            color: var(--accent);
+            font-weight: 600;
+            color: var(--text);
         }}
         .section-content tbody tr {{
             border-bottom: 1px solid var(--border-soft);
         }}
         .section-content tbody tr:nth-child(even) {{
-            background: rgba(56, 189, 248, 0.03);
+            background: rgba(var(--accent-rgb), 0.03);
         }}
         .section-content tbody tr:hover {{
-            background: rgba(56, 189, 248, 0.08);
+            background: rgba(var(--accent-rgb), 0.07);
             transition: background 0.15s ease;
         }}
         .section-content tr:last-child td {{
@@ -609,7 +762,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             bottom: 0;
             left: 0;
             height: 2px;
-            background: linear-gradient(90deg, var(--bull), var(--accent));
+            background: var(--accent);
             border-radius: 0 0 var(--radius-sm) var(--radius-sm);
             transform-origin: left;
             transform: scaleX(0);
@@ -634,7 +787,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
         @media print {{
             :root {{
-                --accent: #0369a1;
+                --accent: #1e5aa8;
+                --accent-rgb: 30, 90, 168;
                 --bg: #fff;
                 --surface: #fff;
                 --surface-2: #f5f5f7;
@@ -646,7 +800,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 --border-soft: #e5e5ea;
                 --bull: #0a8f3f;
                 --bear: #c71e1e;
-                --neutral: #b87a00;
+                --neutral: #6b7280;
+                --warning: #b45309;
             }}
             .page-wrapper {{ display: block; }}
             .site-footer, .dashboard-section, .chart-wrapper,
@@ -687,7 +842,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             .level-muted {{ color: #8e8e93 !important; }}
             .setup-long {{ background: #e8f8f0 !important; color: #0a8f3f !important; }}
             .setup-short {{ background: #fdeaea !important; color: #c71e1e !important; }}
-            .setup-wait {{ background: #fef9e7 !important; color: #b87a00 !important; }}
+            .setup-wait {{ background: #f3f4f6 !important; color: #4b5563 !important; }}
+            .fallback-banner {{ background: #fff7ed; border-color: #f59e0b; color: #b45309; }}
+            .fallback-banner strong {{ color: #92400e; }}
             @page {{
                 margin: 2cm 1.5cm;
                 @top-center {{
@@ -735,32 +892,56 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     var BRIEF_DATA = {brief_json};
     var PERF_DATA = {perf_json};
 
-    /* Paleta dark (debe matchear las CSS vars) */
-    var COLOR_BULL = '#34d399';
-    var COLOR_BEAR = '#fb7185';
-    var COLOR_NEUTRAL = '#fbbf24';
+    /* Tokens de color: única fuente de verdad en :root */
+    function cssVar(name, fallback) {{
+        try {{
+            var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+            return v || fallback;
+        }} catch (e) {{ return fallback; }}
+    }}
+    var COLOR_BULL = cssVar('--bull', '#34c777');
+    var COLOR_BEAR = cssVar('--bear', '#e5484d');
+    var COLOR_NEUTRAL = cssVar('--neutral', '#8b9bb4');
+    var COLOR_ACCENT = cssVar('--accent', '#5b9bff');
+    var COLOR_WARNING = cssVar('--warning', '#f59e0b');
+    var COLOR_TEXT_DIM = cssVar('--text-dim', '#7a8aa0');
+    var COLOR_BORDER = cssVar('--border', '#2a3644');
+    var COLOR_GRID = cssVar('--grid', 'rgba(42, 54, 68, 0.55)');
 
     function fmtPrice(v) {{
         if (!v || v === 0) return '—';
         return Number(v).toLocaleString('en-US', {{minimumFractionDigits: 0, maximumFractionDigits: 2}});
     }}
-    function sesgColor(s) {{
-        s = (s || '').toLowerCase();
-        if (s.indexOf('alcista') !== -1 || s.indexOf('bullish') !== -1) return COLOR_BULL;
-        if (s.indexOf('bajista') !== -1 || s.indexOf('bearish') !== -1) return COLOR_BEAR;
-        return COLOR_NEUTRAL;
+    function fmtSigned(v) {{ return (v > 0 ? '+' : '') + v; }}
+    function alphaOf(c, a) {{ return (c.charAt(0) === '#') ? c + a : c; }}
+
+    /* Acepta bias numérico (esquema rico) o string legacy */
+    function biasInfo(v) {{
+        if (typeof v === 'number' && isFinite(v)) {{
+            var s = Math.round(Math.max(-100, Math.min(100, v)));
+            var label, color;
+            if (s >= 80) {{ label = 'STRONG BULL'; color = COLOR_BULL; }}
+            else if (s >= 60) {{ label = 'BULLISH'; color = COLOR_BULL; }}
+            else if (s >= 40) {{ label = 'MILD BULL'; color = COLOR_BULL; }}
+            else if (s > -40) {{ label = 'NEUTRAL'; color = COLOR_NEUTRAL; }}
+            else if (s > -60) {{ label = 'MILD BEAR'; color = COLOR_BEAR; }}
+            else if (s > -80) {{ label = 'BEARISH'; color = COLOR_BEAR; }}
+            else {{ label = 'STRONG BEAR'; color = COLOR_BEAR; }}
+            return {{ score: s, label: label, color: color }};
+        }}
+        var t = (v === null || v === undefined) ? '' : String(v).toLowerCase();
+        if (t.indexOf('alcista') !== -1 || t.indexOf('bullish') !== -1) return {{ score: 75, label: 'ALCISTA', color: COLOR_BULL }};
+        if (t.indexOf('bajista') !== -1 || t.indexOf('bearish') !== -1) return {{ score: -75, label: 'BAJISTA', color: COLOR_BEAR }};
+        return {{ score: 0, label: 'NEUTRAL', color: COLOR_NEUTRAL }};
     }}
-    function sesgLabel(s) {{
-        s = (s || '').toLowerCase();
-        if (s.indexOf('alcista') !== -1 || s.indexOf('bullish') !== -1) return 'ALCISTA';
-        if (s.indexOf('bajista') !== -1 || s.indexOf('bearish') !== -1) return 'BAJISTA';
-        return 'NEUTRAL';
+    function biasOfAsset(d) {{
+        var raw = (d.bias !== undefined && d.bias !== null) ? d.bias : d.sesgo;
+        return {{ raw: raw, has: raw !== undefined && raw !== null, info: biasInfo(raw) }};
     }}
-    function sesgValue(s) {{
-        s = (s || '').toLowerCase();
-        if (s.indexOf('alcista') !== -1 || s.indexOf('bullish') !== -1) return 75;
-        if (s.indexOf('bajista') !== -1 || s.indexOf('bearish') !== -1) return -75;
-        return 0;
+    function kpi(label, value, sub) {{
+        return '<div class="perf-kpi"><span class="kpi-label">' + label + '</span>' +
+               '<span class="kpi-value">' + value + '</span>' +
+               '<span class="kpi-sub">' + sub + '</span></div>';
     }}
 
     document.addEventListener('DOMContentLoaded', function() {{
@@ -801,8 +982,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         for (var j = 0; j < entries.length; j++) {{
             var name = entries[j][0];
             var d = entries[j][1];
-            var color = sesgColor(d.bias || d.sesgo);
-            var label = sesgLabel(d.bias || d.sesgo);
+            var b = biasOfAsset(d);
             var setup = (d.decision || d.setup || 'WAIT').toUpperCase();
             var setupClass = setup === 'LONG' ? 'setup-long' : (setup === 'SHORT' ? 'setup-short' : 'setup-wait');
             var price = d.price || d.precio_referencia;
@@ -826,18 +1006,58 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             if (d.probability) levelsHTML += '<div class="level-row"><span>Prob.</span><span class="level-val">' + d.probability + '%</span></div>';
             if (d.ev_r) levelsHTML += '<div class="level-row"><span>EV</span><span class="level-val">' + d.ev_r + 'R</span></div>';
 
+            // Chips de métricas (R:R / EV / calidad)
+            var chips = '';
+            if (d.rr) chips += '<span class="asset-chip">R:R ' + d.rr + '</span>';
+            if (d.ev_r !== null && d.ev_r !== undefined && d.ev_r !== '') {{
+                var evNum = Number(d.ev_r);
+                if (isFinite(evNum)) {{
+                    chips += '<span class="asset-chip" style="color:' + (evNum >= 0 ? COLOR_BULL : COLOR_BEAR) + '">EV ' + fmtSigned(evNum) + 'R</span>';
+                }}
+            }}
+            if (d.signal_quality) chips += '<span class="asset-chip">' + d.signal_quality + '</span>';
+
+            // Micro-barra de confianza
+            var meterHTML = '';
+            var confVal = null;
+            if (d.confidence !== null && d.confidence !== undefined && d.confidence !== '') {{
+                var cnum = Number(d.confidence);
+                if (isFinite(cnum)) confVal = Math.max(0, Math.min(100, Math.round(cnum)));
+            }}
+            if (confVal !== null) {{
+                var confColor = confVal >= 60 ? COLOR_ACCENT : COLOR_NEUTRAL;
+                meterHTML = '<div class="asset-meter"><span>Conf</span>' +
+                    '<div class="meter-track"><div class="meter-fill" style="width:' + confVal + '%;background:' + confColor + '"></div></div>' +
+                    '<span class="meter-val">' + confVal + '%</span></div>';
+            }}
+
+            var biasHTML = b.has
+                ? '<div class="asset-bias"><span class="asset-bias-score" style="color:' + b.info.color + '">' + fmtSigned(b.info.score) + '</span>' +
+                  '<span class="asset-sesgo" style="color:' + b.info.color + '">' + b.info.label + '</span></div>'
+                : '<span class="asset-sesgo" style="color:' + COLOR_NEUTRAL + '">SIN DATOS</span>';
+
+            var detailsHTML = '';
+            if (levelsHTML) {{
+                detailsHTML =
+                    '<button type="button" class="asset-levels-toggle" aria-expanded="false" aria-controls="asset-levels-' + j + '" onclick="toggleAssetLevels(this)">' +
+                    '<span>Ver niveles</span>' +
+                    '<svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>' +
+                    '</button>' +
+                    '<div class="asset-levels" id="asset-levels-' + j + '">' + levelsHTML + '</div>';
+            }} else {{
+                detailsHTML = '<div class="asset-empty">Sin niveles ni datos operativos</div>';
+            }}
+
             cardsHTML +=
                 '<div class="asset-card" data-asset="' + name + '">' +
                 '<div class="asset-header">' +
                 '<div class="asset-name">' + name + '</div>' +
-                '<div class="asset-sesgo" style="color:' + color + '">' + label + '</div>' +
+                biasHTML +
                 '</div>' +
                 '<div class="asset-setup ' + setupClass + '">' + setup + '</div>' +
-                '<div class="asset-levels-toggle" onclick="toggleAssetLevels(this)">' +
-                '<span>Ver niveles</span>' +
-                '<svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>' +
-                '</div>' +
-                '<div class="asset-levels">' + levelsHTML + '</div>' +
+                (chips ? '<div class="asset-badges">' + chips + '</div>' : '') +
+                meterHTML +
+                detailsHTML +
                 '</div>';
         }}
 
@@ -851,11 +1071,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
         if (!window.Chart) return;
 
+        var infos = entries.map(function(e) {{ return biasOfAsset(e[1]).info; }});
         var labels = entries.map(function(e) {{ return e[0]; }});
-        var values = entries.map(function(e) {{ return sesgValue(e[1].sesgo); }});
-        var colors = entries.map(function(e) {{ return sesgColor(e[1].sesgo); }});
+        var values = infos.map(function(i) {{ return i.score; }});
+        var colors = infos.map(function(i) {{ return i.color; }});
         // Alpha 15% en background (más sutil)
-        var bgColors = colors.map(function(c) {{ return c + '26'; }});
+        var bgColors = colors.map(function(c) {{ return alphaOf(c, '26'); }});
 
         new Chart(document.getElementById('biasChart'), {{
             type: 'bar',
@@ -877,10 +1098,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     tooltip: {{
                         callbacks: {{
                             label: function(ctx) {{
-                                var v = ctx.raw;
-                                if (v > 0) return ' Alcista';
-                                if (v < 0) return ' Bajista';
-                                return ' Neutral';
+                                var i = infos[ctx.dataIndex] || {{ score: 0, label: 'NEUTRAL' }};
+                                return ' ' + i.label + ' (' + fmtSigned(i.score) + ')';
                             }}
                         }}
                     }}
@@ -888,14 +1107,14 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 scales: {{
                     x: {{
                         min: -100, max: 100,
-                        ticks: {{ color: '#64748b', font: {{ size: 10.5 }} }},
-                        grid: {{ color: 'rgba(38,50,65,0.7)' }},
-                        border: {{ color: '#263241' }}
+                        ticks: {{ color: COLOR_TEXT_DIM, font: {{ size: 10.5 }}, stepSize: 50 }},
+                        grid: {{ color: COLOR_GRID }},
+                        border: {{ color: COLOR_BORDER }}
                     }},
                     y: {{
-                        ticks: {{ color: '#e6edf3', font: {{ weight: '600', size: 11.5 }} }},
-                        grid: {{ color: 'rgba(38,50,65,0.4)' }},
-                        border: {{ color: '#263241' }}
+                        ticks: {{ color: cssVar('--text', '#e8eef5'), font: {{ weight: '600', size: 11.5 }} }},
+                        grid: {{ color: COLOR_GRID }},
+                        border: {{ color: COLOR_BORDER }}
                     }}
                 }}
             }}
@@ -908,20 +1127,42 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     function renderPerf(p) {{
         var host = document.getElementById('dashboard');
         if (!host) return;
+        var ov = p.overall || {{}};
+        var ex = p.execution || {{}};
+        var total = (ov.hit || 0) + (ov.miss || 0);
+        var rate = total > 0 ? ((ov.hit || 0) / total * 100) : null;
+        var rmean = (ex.r_mean != null) ? ex.r_mean + 'R' : 'n/a';
+
         var html = '';
         html += '<div class="dashboard-title">Rendimiento Histórico (evaluado)</div>';
-        var ov = p.overall || {{}};
-        var total = (ov.hit || 0) + (ov.miss || 0);
-        var rate = total > 0 ? ((ov.hit || 0) / total * 100).toFixed(1) : 'n/a';
-        html += '<div class="perf-summary">Hit rate global (decisiones): <strong>' + rate + '%</strong> · ' +
-                (ov.hit || 0) + ' hit / ' + (ov.miss || 0) + ' miss / ' + (ov.skip || 0) + ' skip</div>';
+
+        var kpis = '';
+        kpis += kpi('Hit rate decisión', rate === null ? 'n/a' : rate.toFixed(1) + '%',
+                    (ov.hit || 0) + ' hit / ' + (ov.miss || 0) + ' miss / ' + (ov.skip || 0) + ' skip');
+        kpis += kpi('R medio', rmean, 'n=' + (ex.n_r || 0) + ' trades cerrados');
+        kpis += kpi('Ejecución', 'TP1 ' + (ex.tp1 || 0) + ' · Stop ' + (ex.stop || 0),
+                    'no-fill ' + (ex.no_fill || 0) + ' · sin tocar ' + (ex.none || 0));
         if (ov.calibration) {{
-            html += '<div class="perf-summary sub">Calibración: ' +
-                    '<strong>' + (ov.calibration.probability || 0) + '%</strong> probabilidad declarada vs ' +
-                    '<strong>' + (ov.calibration.actual || 0) + '%</strong> acierto real' +
-                    (ov.calibration.brier != null ? ' · Brier: ' + ov.calibration.brier +
-                        ' (n=' + (ov.calibration.n || 0) + ')' : '') + '</div>';
+            kpis += kpi('Calibración',
+                        (ov.calibration.probability || 0) + '% vs ' + (ov.calibration.actual || 0) + '%',
+                        'prob. declarada vs acierto real' + (ov.calibration.brier != null ? ' · Brier ' + ov.calibration.brier + ' (n=' + (ov.calibration.n || 0) + ')' : ''));
         }}
+        html += '<div class="perf-kpis">' + kpis + '</div>';
+
+        if (ov.calibration) {{
+            var decl = Math.max(0, Math.min(100, ov.calibration.probability || 0));
+            var act = Math.max(0, Math.min(100, ov.calibration.actual || 0));
+            html += '<div class="calib-block">' +
+                '<div class="calib-track">' +
+                '<div class="calib-declared" style="width:' + decl + '%"></div>' +
+                '<div class="calib-actual" style="left:' + act + '%"></div>' +
+                '</div>' +
+                '<div class="calib-legend">' +
+                '<span><span class="calib-dot" style="background:var(--accent);opacity:0.55"></span>Probabilidad declarada: ' + decl + '%</span>' +
+                '<span><span class="calib-dot" style="background:var(--warning)"></span>Acierto real: ' + act + '%</span>' +
+                '</div></div>';
+        }}
+
         if (p.bias) {{
             var bt = (p.bias.hit || 0) + (p.bias.miss || 0);
             if (bt > 0) {{
@@ -930,31 +1171,96 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         (p.bias.hit || 0) + ' hit / ' + (p.bias.miss || 0) + ' miss</div>';
             }}
         }}
-        if (p.execution) {{
-            var ex = p.execution;
-            var rmean = (ex.r_mean != null) ? (ex.r_mean + 'R') : 'n/a';
-            html += '<div class="perf-summary sub">Ejecución de niveles: ' +
-                    'TP1 ' + (ex.tp1 || 0) + ' · TP2 ' + (ex.tp2 || 0) +
-                    ' · Stop ' + (ex.stop || 0) + ' · no-fill ' + (ex.no_fill || 0) +
-                    ' · sin tocar ' + (ex.none || 0) +
-                    ' · R medio <strong>' + rmean + '</strong> (n=' + (ex.n_r || 0) + ')</div>';
-        }}
+
+        // Stats por activo (ranking por rate para chart + tabla)
+        var assetStats = [];
         if (p.by_asset) {{
+            Object.keys(p.by_asset).forEach(function(nm) {{
+                var st = p.by_asset[nm] || {{}};
+                var tt = (st.hit || 0) + (st.miss || 0);
+                assetStats.push({{
+                    name: nm,
+                    hit: st.hit || 0,
+                    miss: st.miss || 0,
+                    rate: tt > 0 ? (st.hit || 0) / tt * 100 : null,
+                    stops: (st.execution && st.execution.stop) ? st.execution.stop : (st.execution ? 0 : '—'),
+                    rmean: (st.execution && st.execution.r_mean != null) ? (st.execution.r_mean + 'R') : '—'
+                }});
+            }});
+            assetStats.sort(function(a, c) {{
+                var ra = a.rate === null ? -1 : a.rate;
+                var rc = c.rate === null ? -1 : c.rate;
+                return rc - ra || a.name.localeCompare(c.name);
+            }});
+        }}
+
+        var rated = assetStats.filter(function(a) {{ return a.rate !== null; }});
+        if (rated.length > 0) {{
+            html += '<div class="chart-wrapper" style="margin: var(--space-md) 0;">' +
+                    '<div class="chart-label">Hit rate por activo (decisiones)</div>' +
+                    '<canvas id="perfAssetChart" height="140"></canvas></div>';
+        }}
+
+        if (assetStats.length > 0) {{
             html += '<div class="perf-table-scroll"><table class="perf-table"><thead><tr>' +
                     '<th>Activo</th><th>Hit</th><th>Miss</th><th>Rate</th><th>Stop</th><th>R</th></tr></thead><tbody>';
-            var assets = Object.entries(p.by_asset).sort(function(a, b) {{ return a[0].localeCompare(b[0]); }});
-            for (var i = 0; i < assets.length; i++) {{
-                var nm = assets[i][0]; var st = assets[i][1];
-                var tt = (st.hit || 0) + (st.miss || 0);
-                var rr = tt > 0 ? ((st.hit || 0) / tt * 100).toFixed(0) + '%' : '—';
-                var stops = (st.execution && st.execution.stop) ? st.execution.stop : (st.execution ? 0 : '—');
-                var rm = (st.execution && st.execution.r_mean != null) ? (st.execution.r_mean + 'R') : '—';
-                html += '<tr><td>' + nm + '</td><td>' + (st.hit || 0) + '</td><td>' +
-                        (st.miss || 0) + '</td><td>' + rr + '</td><td>' + stops + '</td><td>' + rm + '</td></tr>';
+            for (var i = 0; i < assetStats.length; i++) {{
+                var a = assetStats[i];
+                var rateTxt = a.rate === null ? '—' : a.rate.toFixed(0) + '%';
+                html += '<tr><td>' + a.name + '</td><td>' + a.hit + '</td><td>' +
+                        a.miss + '</td><td>' + rateTxt + '</td><td>' + a.stops + '</td><td>' + a.rmean + '</td></tr>';
             }}
             html += '</tbody></table></div>';
         }}
         host.insertAdjacentHTML('beforeend', html);
+
+        if (window.Chart && rated.length > 0) {{
+            var cnt = document.getElementById('perfAssetChart');
+            if (cnt) {{
+                var dcolors = rated.map(function(a) {{ return a.rate >= 55 ? COLOR_BULL : (a.rate <= 45 ? COLOR_BEAR : COLOR_NEUTRAL); }});
+                new Chart(cnt, {{
+                    type: 'bar',
+                    data: {{
+                        labels: rated.map(function(a) {{ return a.name; }}),
+                        datasets: [{{
+                            data: rated.map(function(a) {{ return Number(a.rate.toFixed(1)); }}),
+                            backgroundColor: dcolors.map(function(c) {{ return alphaOf(c, '26'); }}),
+                            borderColor: dcolors,
+                            borderWidth: 1.5,
+                            borderRadius: 3
+                        }}]
+                    }},
+                    options: {{
+                        indexAxis: 'y',
+                        responsive: true,
+                        plugins: {{
+                            legend: {{ display: false }},
+                            tooltip: {{
+                                callbacks: {{
+                                    label: function(ctx) {{
+                                        var a = rated[ctx.dataIndex] || {{}};
+                                        return ' ' + (a.rate || 0).toFixed(1) + '% (hit ' + a.hit + ' / miss ' + a.miss + ')';
+                                    }}
+                                }}
+                            }}
+                        }},
+                        scales: {{
+                            x: {{
+                                min: 0, max: 100,
+                                ticks: {{ color: COLOR_TEXT_DIM, font: {{ size: 10.5 }}, stepSize: 25 }},
+                                grid: {{ color: COLOR_GRID }},
+                                border: {{ color: COLOR_BORDER }}
+                            }},
+                            y: {{
+                                ticks: {{ color: cssVar('--text', '#e8eef5'), font: {{ weight: '600', size: 11.5 }} }},
+                                grid: {{ color: COLOR_GRID }},
+                                border: {{ color: COLOR_BORDER }}
+                            }}
+                        }}
+                    }}
+                }});
+            }}
+        }}
     }}
 
     // Section card wrapper - finds major H2s and wraps them + following content into section-cards
@@ -991,7 +1297,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             title.className = 'section-title';
 
             var text = h2.textContent.trim();
-            var badgeText = 'SECCIÓN';
+            var badgeText = 'INFORME';
             var match = text.match(/^(\\d+)[.)]\\s*(.+)/);
             if (match) {{
                 badgeText = 'SECCIÓN ' + match[1];
@@ -1029,9 +1335,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     // Toggle asset levels expand/collapse
     function toggleAssetLevels(btn) {{
         var card = btn.closest('.asset-card');
-        if (card) {{
-            card.classList.toggle('expanded');
-        }}
+        if (!card) return;
+        var expanded = card.classList.toggle('expanded');
+        btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        var label = btn.querySelector('span');
+        if (label) label.textContent = expanded ? 'Ocultar niveles' : 'Ver niveles';
     }}
 
     // Scroll progress indicator
@@ -1306,7 +1614,10 @@ def markdown_to_html(md_text: str) -> str:
     html = html.replace(">", "&gt;")
 
     # Headers
+    # Secciones numeradas "### 1. TITULO" (formato v1.5) se promueven a h2
+    # para que wrapSectionsInCards las convierta en section-cards.
     html = re.sub(r"^#### (.+)$", r"<h4>\1</h4>", html, flags=re.MULTILINE)
+    html = re.sub(r"^###\s+(\d{1,2})[.)]\s+(.+)$", r"<h2>\1. \2</h2>", html, flags=re.MULTILINE)
     html = re.sub(r"^### (.+)$", r"<h3>\1</h3>", html, flags=re.MULTILINE)
     html = re.sub(r"^## (.+)$", r"<h2>\1</h2>", html, flags=re.MULTILINE)
     html = re.sub(r"^# (.+)$", r"<h1>\1</h1>", html, flags=re.MULTILINE)
