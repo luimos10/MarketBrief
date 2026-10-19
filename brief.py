@@ -409,10 +409,10 @@ def _salvage_truncated_json(raw: str) -> str | None:
 
 
 def _repair_md_json_and_cierre(md_text, sidecar_structured=None):
-    """Repara bloque JSON sin cerrar y asegura la Sección 11 (CIERRE) en el MD.
+    """Repara bloque JSON sin cerrar y asegura la Sección 11 (TRADER MANDATE) en el MD.
 
     Protege contra truncamiento (finish_reason=MAX_TOKENS): cierra el bloque
-    ```json``` con el JSON válido recuperable y añade la sección de cierre
+    ```json``` con el JSON válido recuperable y añade la sección 11
     del Prompt Maestro si el modelo no la escribió.
     """
     import json
@@ -442,11 +442,18 @@ def _repair_md_json_and_cierre(md_text, sidecar_structured=None):
             text = md_text
 
     tl = text.lower()
-    if "capital busca liquidez" not in tl and "## 11" not in tl:
+    has_seccion_11 = (
+        "## 11" in tl
+        or "trader mandate" in tl
+        or "capital busca liquidez" in tl
+    )
+    if not has_seccion_11:
         text = (
             text.rstrip()
-            + '\n\n## 11. CIERRE\n\n"Capital busca liquidez en estructura antes '
-            'de confirmación de breakout."\n'
+            + "\n\n## 11. TRADER MANDATE\n\n"
+            "- Focalizar atención en los setups con edge claro;\n"
+            "- Reducir tamaño en activos con conflictos altos;\n"
+            "- Evitar operar sin trigger confirmado y sin EV positivo.\n"
         )
     return text
 

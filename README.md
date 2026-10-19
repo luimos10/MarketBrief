@@ -371,7 +371,7 @@ Todas configuradas en `.env`. Las marcadas como `(opcional)` se omiten gracefull
 
 | Variable | Default | Descripción |
 |----------|---------|-------------|
-| `PROMPT_VERSION` | `v1.4` | Tag inyectado en cada brief + logbook |
+| `PROMPT_VERSION` | `v1.5` | Tag inyectado en cada brief + logbook |
 | `PROMPT_AB_ENABLED` | `false` | Si `true`, alterna 50/50 entre `prompt_template.txt` y `prompt_template_v2.txt` |
 
 ---
@@ -444,7 +444,7 @@ Cada corrida produce:
 {
   "report":  { "date": "2026-05-25", "market_bias": "Alcista|Bajista|Neutral",
                "market_leader": "BTC|Nasdaq|...", "model": "gemini",
-               "prompt_version": "v1.4" },
+               "prompt_version": "v1.5" },
   "regime":  { "primary": "...", "secondary": "...", "confidence": null },
   "aggregate": { "main_assets_average_bias": 0, "decision": "..." },
   "assets": {

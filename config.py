@@ -27,7 +27,7 @@ FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY", "")
 # ═══════════════════════════════════════════════════════
 # VERSIONADO DEL PROMPT (para tracking de alpha)
 # ═══════════════════════════════════════════════════════
-PROMPT_VERSION = os.getenv("PROMPT_VERSION", "v1.4")
+PROMPT_VERSION = os.getenv("PROMPT_VERSION", "v1.5")
 
 # FRED (St. Louis Fed) - macro liquidez + yield curve. Free en
 # https://fred.stlouisfed.org/docs/api/api_key.html (registro 1 min).
@@ -44,7 +44,7 @@ GEMINI_FALLBACK_MODELS = [
     for m in os.getenv("GEMINI_FALLBACK_MODELS", "gemini-3.5-flash-lite").split(",")
     if m.strip()
 ]
-# MAX_TOKENS: techo de output del LLM. El template Prompt Maestro (v1.4)
+# MAX_TOKENS: techo de output del LLM. El template Prompt Maestro (v1.5)
 # puede consumir ~16K tokens de salida; 32768 deja margen para evitar
 # truncamiento (finish_reason=MAX_TOKENS).
 MAX_TOKENS = int(os.getenv("MAX_TOKENS", "32768"))
