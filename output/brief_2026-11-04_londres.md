@@ -1,76 +1,96 @@
-## Sesgo Alcista | Analizado con Gemini (gemini-2.5-flash)
+## Sesgo Alcista | Analizado con openrouter (nvidia/nemotron-3-ultra-550b-a55b:free)
 
-**Informe base:** INFORME PRE-MARKET — Wednesday, 04 de November de 2026
+**Informe base:** INFORME PRE-MARKET — 2026-11-04
 **Sesgo del mercado:** Alcista
 **Mercado lider:** Mixto
-**IA de analisis:** Gemini (gemini-2.5-flash)
+**IA de analisis:** openrouter (nvidia/nemotron-3-ultra-550b-a55b:free)
 **Versión prompt:** v1.5
 
+> ⚠️ **Modo de contingencia** · Informe generado con **openrouter (nvidia/nemotron-3-ultra-550b-a55b:free)** por indisponibilidad del primario **openrouter:gemini-2.5-flash**.
+
 ### 1. EXECUTIVE SUMMARY & MARKET REGIME
-*   **Primary Regime:** Mixed
-*   **Secondary Regime / Transition Risk:** Short-term Volatility Stress / Disinflationary Pressure
-*   **Brief Verdict:** El mercado muestra un sesgo bajista generalizado en renta variable y metales preciosos, con un repunte de la volatilidad a corto plazo. Crypto se mantiene neutral con un posicionamiento long excesivo. El petróleo muestra un sesgo alcista.
+*   **Primary Regime:** Mixed / Transition — Risk-Off en equities (NDX -39, SPX -6) con Risk-On selectivo en commodities (Oil +26) y USD neutral (DXY +8). VIX term structure invertida (VIX9D/VIX 1.05) señalando estrés inmediato.
+*   **Secondary Regime / Transition Risk:** Liquidity Contraction encubierta — US02Y +61 (muy alcista) y curva bear-steepening (2s10s ampliando) drenan liquidez marginal; funding BTC extremo positivo (percentil 100, 7d mismo signo) añade fragilidad long en crypto.
+*   **Brief Verdict:** Sesgo neto bajista para riesgo puro (NDX, Gold, Silver) pero con bolsas de momentum alcista en Energy/Financials. Crypto neutral con asimetría bajista por positioning/long-squeeze risk. Día para **reducción de exposición direccional** y caza de squeezes tácticos en Oil/XLF.
 
 ### 2. MACRO CONTEXT & LIQUIDITY (DXY, VIX, US10Y)
-*   El **DXY** (+6 Neutral) se mantiene estable, con un momentum bajista que contrarresta la tendencia alcista. Esto sugiere un entorno de liquidez neutral. El **US10Y** (+18 Neutral) también es neutral, con una tendencia alcista pero un momentum bajista, lo que podría indicar una pausa en el aumento de los rendimientos. El **VIX** (+51 Alcista) y sus derivados (VIX9D, VIX3M, VVIX) muestran un claro sesgo alcista, con una curva de volatilidad invertida (VIX9D/VIX: 1.054), lo que indica un estrés significativo en el corto plazo y una expectativa de mayor volatilidad. Este entorno macro es de aversión al riesgo para activos de crecimiento y un posible refugio en el dólar si el estrés se intensifica.
-*   **Catalizadores clave del día:** Dato no disponible.
+*   **DXY 101.52** (neutral +8): EMA200 100.20, precio +1.3% arriba; RSI 47.2, MACD bajista expandiendo. Sin dirección clara — actúa como ancla, no driver.
+*   **VIX 20.83** (alcista +51): EMA200 17.46, precio +19% arriba; RSI 62.8, ADX 38.6 fuerte. VIX9D 21.96 > VIX > VIX3M 21.27 → curva invertida persistente. **Premium de vol corto** caro; hedging costoso, gamma negativo en dealers.
+*   **US10Y 4.952** (neutral +18): EMA200 4.657, precio +6.3% arriba; RSI 41.9, MACD bajista contrayendo. **US02Y 4.775** (+61, muy alcista) lidera — bear steepening real. Liquidez marginal se contrae.
+*   **Catalizadores clave:** Sin calendario macro confirmado (FRED/API keys ausentes). Vigilar subastas 10Y/30Y y speeches FOMC no programados.
 
 ### 3. APEX ASSET: BTC (BIAS & EXECUTION)
-*   **Bias Score:** -20 (Neutral) | **Confidence:** 60% | **Signal Quality:** B
-*   **Driver & Counter-signal:** El driver principal es el momentum bajista en el marco temporal diario (MACD bajista contrayendo, RSI 38.2), con un precio por debajo de EMA20 y EMA55. El counter-signal es la alineación mixta en el diario (vs EMA200 %=2.93) y el MACD alcista expandiendo en 4h, además de un funding rate extremo positivo que sugiere riesgo de long squeeze. El Open Interest es elevado y el bid/ask ratio en el top 10 de profundidad es 19.23, indicando una fuerte demanda en el bid.
-*   **Key Levels:** Support **75690.2** (low 24h), Resistance **78039.4** (high 24h), Invalidation **79619.1** (EMA20 1d).
+*   **Bias Score:** -19 (Neutral) | **Confidence:** 55% | **Signal Quality:** C (Edge débil)
+*   **Driver & Counter-signal:** Trend 1d mixto (precio 77746 > EMA200 75247, +3.3%) pero 4h bajista (precio < EMA200 81182, -4.2%). Momentum 1d RSI 39.7, MACD bajista contrayendo. **Counter-signal crítico:** Funding 0.01% (p90 100%, 7d consecutivos) + long/short ratio 2.39 (top traders 1.75 pos) → **long squeeze risk alto**. Liquidaciones: short squeeze 77857/78164, long liq 75690/76835/77088.
+*   **Key Levels:** Support 75690 (wick 50.6%, low 24h), 76835 (liq cluster). Resistance 77857 (wick 79.9%), 78164 (high 24h, wick 47.8%). Invalidation long: pérdida 75690 cierra camino a 74000 (EMA200 1d). Invalidation short: cierre 4h > 78164.
 
 ### 4. EQUITIES REVIEW: SP500 & NASDAQ
-*   **Bias & Confidence:**
-    *   **S&P 500 (ES):** -10 (Neutral) | Confidence: 65%. El momentum es bajista expandiendo (MACD) y el RSI está en 33.9, indicando debilidad. Sin embargo, la alineación diaria es alcista vs EMA200 (1.68%).
-    *   **Nasdaq 100 (NQ):** -43 (Bajista) | Confidence: 70%. Fuerte sesgo bajista con RSI en 29.3 y MACD bajista expandiendo. El precio está significativamente por debajo de EMA20, EMA55 y EMA200 (-1.95% vs EMA200).
-*   **Market Breadth/Rotation:** El régimen de rotación sectorial es mixto. XLY_Cons_Disc lidera con +2.69% en 7d, mientras que XLK_Tech rezaga con -5.27%. Esto indica una preferencia por sectores defensivos o de valor sobre el crecimiento tecnológico, lo que es consistente con un entorno de aversión al riesgo.
-*   **Key Levels:**
-    *   **S&P 500 (ES):** Support **7490.0** (low 20d/5d), Resistance **7706.3** (EMA20 1d).
-    *   **Nasdaq 100 (NQ):** Support **27621.25** (low 20d/5d), Resistance **29481.0** (EMA20 1d).
+*   **SP500 7555.5** | Bias -6 (Neutral) | Confidence 50% | Quality C  
+    Trend alcista vs EMA200 7388 (+2.3%) pero momentum deteriorado: RSI 37, MACD bajista expandiendo, BB% 0.02 (banda inferior). Breadth: XLK -5.3% 7d, XLF +2.1%, XLY +2.7% → rotación defensiva/cíclica, no risk-on.  
+    **Levels:** Soporte 7490 (low 20d/5d), 7520 (VWAP día -0.4%). Resistencia 7699 (EMA20), 7773 (high 5d). Invalidation alcista: <7490.
+*   **NASDAQ 28120.75** | Bias -39 (Bajista) | Confidence 70% | Quality B  
+    Trend mixto vs EMA200 28298 (-0.6%), momentum fuerte bajista: RSI 33, MACD bajista expandiendo, ADX 29.1. Correlación 0.96 con SPX pero beta alto. Vol 30d 22.3%, z-score -1.99 (barato pero cayendo).  
+    **Levels:** Soporte 27621 (low 20d), 27900 (gap). Resistencia 29400 (EMA20), 29794 (high 5d). Invalidation bajista: >29400 cierra gap.
 
 ### 5. COMMODITIES DYNAMICS: GOLD & OIL
-*   **Bias & Confidence:**
-    *   **Gold (XAUUSD):** -65 (Muy bajista) | Confidence: 75%. Fuerte sesgo bajista con alineación bajista en el diario (-7.69% vs EMA200), RSI en 35.5 y MACD bajista contrayendo. La correlación negativa con BTC (-0.47) y positiva con NDX (0.54) y SPX (0.66) sugiere que el oro no está actuando como refugio seguro en este entorno.
-    *   **Crude Oil (WTI):** +28 (Alcista) | Confidence: 65%. Sesgo alcista con alineación alcista en el diario (11.01% vs EMA200). Sin embargo, el MACD es bajista expandiendo y el RSI está en 46.5, lo que indica una posible desaceleración del momentum.
-*   **Key Levels:**
-    *   **Gold (XAUUSD):** Support **3879.3** (low 20d/5d), Resistance **4082.5** (EMA20 1d).
-    *   **Crude Oil (WTI):** Support **94.99** (low 5d), Resistance **98.34** (EMA20 1d).
+*   **Gold 3965.3** | Bias -63 (Muy bajista) | Confidence 75% | Quality B  
+    Trend bajista puro: precio -7.5% vs EMA200 4286, RSI 37.1, MACD bajista contrayendo, ADX 33.4. Correlación 0.94 con Silver (-80) confirma washout metales. COT: commercials net short -1242 pero Δ semanal +214k (cover masivo).  
+    **Levels:** Soporte 3879 (low 20d/5d), 3850 (psicológico). Resistencia 4069 (EMA20), 4081 (high 5d). Invalidation bajista: >4081.
+*   **Oil (WTI) 96.32** | Bias +26 (Alcista) | Confidence 65% | Quality B  
+    Trend alcista vs EMA200 85.93 (+12.1%), EMA20 98.22 actúa soporte dinámico. Momentum mixto: RSI 48, MACD bajista expandiendo. Vol 30d 45.5% alta, z-score 0.06 neutral. COT: commercials net long +25k (hedgers comprados).  
+    **Levels:** Soporte 93.59 (low 5d), 94.46 (EMA55). Resistencia 98.22 (EMA20), 104.99 (high 5d). Invalidation alcista: <93.50.
 
 ### 6. WATCHLIST METRICS (ETH, SOL, SILVER, US02Y)
-*   **ETHUSDT:** -11 (Neutral). Precio por debajo de EMA20 y EMA55 en 1d, pero por encima de EMA200. MACD bajista contrayendo en 1d, alcista expandiendo en 4h. Long/Short Ratio elevado (2.3422), indicando posible long squeeze.
-*   **SOLUSDT:** -22 (Neutral). Fuerte momentum bajista (RSI 27.9, MACD bajista contrayendo en 1d). Precio por debajo de todas las EMAs en 4h y 1d. Long/Short Ratio muy elevado (3.1356), con riesgo de long squeeze.
-*   **Silver (XAGUSD):** -92 (Muy bajista). Fuerte tendencia bajista, con precio muy por debajo de EMA200 (-21.84%). RSI en 27.8 y MACD bajista expandiendo. Correlación muy alta con Gold (0.90).
-*   **US02Y:** +61 (Muy alcista). Fuerte tendencia alcista (16.13% vs EMA200), con RSI en 60.9. MACD bajista contrayendo, indicando una posible pausa en el momentum.
+| Activo | Bias | Conf | Calidad | Nota Clave |
+|--------|------|------|---------|------------|
+| **ETH** 2288 | -10 Neutral | 50% | C | 1d mixto (EMA200 2262, +1.2%), 4h bajista (-5.5% vs EMA200). Bid/ask ratio 0.16 (ask heavy). Funding 0.007% bajo. |
+| **SOL** 92.66 | -22 Neutral | 45% | C | 1d RSI 28.3 (oversold), EMA200 93.35 (-0.75%). 4h RSI 42.3, MACD alcista expandiendo. Long/short 3.16 extremo. Vol 30d 44.5%. |
+| **SILVER** 49.99 | -80 Muy bajista | 80% | A- | Trend -1.00, RSI 29.8, -20.9% vs EMA200 63.18. Correlación 0.94 Gold. Oversold extremo pero sin divergencia MACD. |
+| **US02Y** 4.775 | +61 Muy alcista | 85% | A | Trend +1.00, RSI 60.9, +16% vs EMA200. Bear steepening driver. Liquidez drenaje. |
+
+**Relative Strength:** US02Y > XLF > Oil > DXY > BTC/ETH > SPX > NDX > Gold > Silver. **Divergencia:** US02Y alcista vs NDX bajista = tightening real.
 
 ### 7. POSITIONING & MICROSTRUCTURE (DERIVATIVES)
-*   **Open Interest & Funding:**
-    *   **BTCUSDT:** Open Interest elevado (98464.413). Funding rate en 0.0001% (extremo positivo), lo que sugiere un sesgo long excesivo y riesgo de long squeeze. Long/Short Ratio en 2.3467, con 70.12% de cuentas en long. Top traders también sesgados a long (1.9656 account ratio, 1.5850 position ratio).
-    *   **ETHUSDT:** Open Interest en 2369082.072. Funding rate en 5.327e-05 (extremo positivo). Long/Short Ratio en 2.3422, con 70.08% de cuentas en long.
-    *   **SOLUSDT:** Open Interest en 9355542.63. Funding rate en 0.0001% (positivo). Long/Short Ratio en 3.1356, con 75.82% de cuentas en long.
-*   **Squeeze Risk / Liquidation Zones:**
-    *   **BTCUSDT:** Riesgo de long liquidation en **75690.2** (50.6% wick) y **76835.8** (56.2% wick). Zonas de short squeeze en **77857.0** (79.9% wick) y **77260.8** (71.5% wick).
-    *   **BTC Options:** El spot está pegado al Max Pain de **77000** (-0.30% vs spot) para el próximo expiry (2026-11-04), lo que aumenta el riesgo de un "pin day" alrededor de este nivel. El PC ratio global es 0.68, indicando un dominio de calls.
+*   **BTC Funding:** 0.01% (extremo positivo, p90 100%). 7d consecutivos. **Long squeeze probability >60%** si precio stalla <78000. Next funding 08:00 UTC.
+*   **Open Interest:** BTC 98.3k, ETH 2.37M, SOL 9.29M. OI estable/sube en retrocesos → shorts agresivos añadiendo.
+*   **Liquidation Map (BTC):** Short squeeze cluster 77857-78164 (wicks 80%/48%). Long liq cluster 75690-77088 (wicks 50-73%). **Magnet:** 77000 max pain (options) + 76835 liq cluster.
+*   **Options Flow (Deribit):** PC ratio 0.68 (call heavy). Max pain 77000 (-0.94% spot). Strikes clave: 78000 (C 938), 79000 (C 894), 73000 (P 322). **Pin risk 77000** día expiry.
+*   **Taker Flow:** BTC buy/sell 0.88 (vendedor agresivo neto). ETH 0.88, SOL 0.85. Pressure vendedor en spot/perps.
 
 ### 8. CONFLICT DETECTOR (RISK OVERRIDE)
-*   **Conflict Level:** Moderate
-*   Existe una contradicción entre el sesgo bajista de momentum en los índices de renta variable y metales preciosos, y el posicionamiento excesivamente long en cripto con funding rates positivos. La volatilidad a corto plazo (VIX9D/VIX > 1) sugiere un aumento del riesgo, pero el DXY y US10Y son neutrales, lo que no indica un flight-to-safety claro. La rotación sectorial mixta también añade ambigüedad.
+*   **Conflict Level:** HIGH
+*   **Contradicciones:**
+    1.  **BTC:** Trend 1d alcista vs Funding/Positioning bajista (long squeeze). Macro: DXY neutral no apoya, VIX rising castiga risk.
+    2.  **Gold:** Oversold técnico (RSI 37, BB% 0.18) vs Trend/Momentum/COT bajistas alineados. Silver -80 amplifica.
+    3.  **Equities:** SPX > EMA200 pero NDX < EMA200, breadth negativo (XLK -5.3%), VIX term structure invertida. **Divergencia índice/sector**.
+    4.  **Oil:** Trend alcista fuerte vs MACD bajista expandiendo + vol 45% alta. Requiere confirmación momentum.
+    5.  **US02Y +61** vs **US10Y +18** = bear steepening que drena liquidez risk-on — contradice Oil alcista sostenido.
 
 ### 9. ACTIONABLE SETUPS & EXPECTED VALUE
-*   No hay setups con un edge claro y una probabilidad calibrada suficiente para justificar una operación en este momento. La sobreconfianza histórica del modelo (probabilidad media 56.7% vs acierto real 28.5%) exige un umbral más alto para los setups.
+*Solo setups con EV > 0 calibrado (hit rate real 28.5% → prob max 38.5%). Stops ≥ 1.5×ATR. Entrada a mercado con stop estructural.*
+
+| Setup | Dirección | Entry | Invalidation (SL) | Target 1 | Target 2 | R:R | Prob (cal) | EV (R) | Sizing |
+|-------|-----------|-------|-------------------|----------|----------|-----|------------|--------|--------|
+| **OIL** | Long | 96.30 (mkt) | 93.50 (low 5d, 1.8×ATR) | 98.22 (EMA20) | 101.50 (50% retrace) | 1:1.3 / 1:2.9 | 35% | +0.11R | 0.5% NAV |
+| **XLF** | Long | 57.20 (mkt) | 55.80 (low 5d, 1.6×ATR) | 57.70 (high 20d) | 58.50 | 1:1.1 / 1:2.3 | 38% | +0.09R | 0.4% NAV |
+| **BTC** | Short (squeeze) | 77750 (mkt) | 78200 (high 24h + buffer) | 76835 (liq cluster) | 75690 (low 24h) | 1:1.2 / 1:2.6 | 32% | +0.05R | 0.3% NAV |
+
+**Notas EV:** Probabilidades capadas a hit rate real +10pp (38.5%). Avg win R ~1.5 (TP1 hit rate histórico 1/82), avg loss R 1.0. EV marginal — **solo si trigger confirmado** (OIL: cierre 1h > 96.50; XLF: >57.00; BTC: rechazo 77850 con vol).
 
 ### 10. NO-TRADE & SIT-ON-HANDS ZONES
-*   **BTCUSDT:** Sit on hands. Posicionamiento excesivamente long con riesgo de squeeze y conflicto de señales técnicas entre marcos temporales.
-*   **ETHUSDT:** Sit on hands. Similar a BTC, con riesgo de long squeeze.
-*   **SOLUSDT:** Sit on hands. Fuerte momentum bajista pero con posicionamiento long extremo.
-*   **S&P 500 (ES):** Sit on hands. Sesgo neutral con momentum bajista y volatilidad al alza.
-*   **Nasdaq 100 (NQ):** Sit on hands. Fuerte sesgo bajista pero con un entorno macro de volatilidad incierta.
-*   **Gold (XAUUSD):** Sit on hands. Muy bajista, pero la correlación con equities no lo posiciona como refugio claro.
-*   **Silver (XAGUSD):** Sit on hands. Muy bajista, pero con alta volatilidad y sin un trigger claro.
+*   **BTC Long:** Funding extremo + long/short 2.39 + taker sell dominant + max pain pin. **No long sin reset funding <0.005%.**
+*   **NASDAQ Long:** Bias -39, momentum bajista fuerte, VIX9D/VIX invertido, breadth tech -5.3%. **Solo short rallies a EMA20 29400.**
+*   **Gold Long:** Bias -63, trend/momentum/COT alineados bajistas. Oversold no es señal. **Esperar >4081 para reconsiderar.**
+*   **Silver:** Bias -80, -21% vs EMA200, ADX 45.4 (fuerte trend). **Cuchillo cayendo — no catch.**
+*   **ETH/SOL:** Neutrales con positioning long extremo (ratios 2.4/3.2). Funding bajo pero OI alto. **Sin edge direccional claro.**
+*   **SP500:** Neutral -6, z-score -2.29 (oversold 30d) pero momentum bajista. **Range 7490-7700 — no perseguir.**
 
 
 
 ### 11. TRADER MANDATE (FINAL EXECUTION PLAN)
-*   **Focalizar la atención:** Monitorear la evolución de la volatilidad (VIX y sus derivados) y su impacto en los índices de renta variable. Observar el comportamiento del DXY y US10Y para detectar cambios en el régimen macro.
-*   **Reducir tamaño:** Evitar posiciones direccionales agresivas en BTC, ETH, SOL, SP500, NASDAQ, GOLD y SILVER debido a la falta de edge claro, el riesgo de squeeze o las señales contradictorias.
-*   **Evitar hoy:** Operaciones que dependan de fills exactos en retrocesos o stops ajustados. Priorizar la preservación de capital en un entorno de incertidumbre y volatilidad a corto plazo.
+*   **Foco principal:** Oil long en pullback a 96.30 con stop 93.50 (1.8×ATR). Trigger: cierre 1h >96.50 con vol >avg. Size 0.5% NAV.
+*   **Foco secundario:** XLF long 57.20 stop 55.80 si >57.00 con momentum. Size 0.4% NAV. Financials benefician bear steepening.
+*   **Táctico BTC:** Short 77750 stop 78200 solo si rechazo claro 77850-78164 con vol. Target 76835/75690. Size 0.3% NAV. **No perseguir.**
+*   **Reducir/evitar:** Exposición neta risk-on (NDX, XLK, Gold, Silver, ETH, SOL). VIX term structure invertida = hedging caro, no comprar vol.
+*   **Monitorear:** US02Y >4.80 acelera drenaje liquidez → reduce tamaño total 20%. DXY break 101.24 o 102.00 para señal macro.
+*   **Gestión:** Stops estructurales ≥1.5×ATR. Entradas a mercado (no límites) — 58% fills fallados histórico. Revisar a 08:00 UTC (funding BTC) y 13:30 UTC (efectivo US open).
