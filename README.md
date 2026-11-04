@@ -197,7 +197,7 @@ Tiempo total típico: **10-15s en cold cache, <1s en warm cache.**
    - Inyecta `Versión prompt: vX.X` para tracking.
 
 4. **Generación con LLM** (`modules/brief_generator.py`)
-   - **Solo Gemini** vía `google-genai` con Google Search Grounding activable.
+   - **Gemini** vía `google-genai` con Google Search Grounding activable.
      Con `thinking_config.thinking_budget=0` (modelos Flash/Lite) para volcar
      todo el presupuesto a la respuesta visible; si el grounding agota cuota
      (`RESOURCE_EXHAUSTED`) se reintenta sin search.
@@ -205,8 +205,13 @@ Tiempo total típico: **10-15s en cold cache, <1s en warm cache.**
      `GEMINI_MODEL` (primario) → `GEMINI_FALLBACK_MODELS` (en orden). Si
      **toda** la cadena falla en una pasada, espera ~60s y la repite (2
      pasadas) para dar tiempo a liberar cuota por minuto.
+   - **Fallback externo Groq** (API OpenAI-compatible): si toda la cadena
+     Gemini falla, o con `--model groq`, se llama a `GROQ_MODEL` (default
+     `llama-3.3-70b-versatile`; también soporta
+     `meta-models/muse-spark-open`). Ante 403/404 conmuta automáticamente a
+     `openai/gpt-oss-120b`.
    - Retry 3x con exponential backoff para 429/5xx.
-   - Temperatura 0.3 para consistencia.
+   - Temperatura 0.3 para consistencia (Muse Spark Open usa su default).
 
 5. **Extracción JSON + Logbook** (`modules/logbook.py`)
    - Busca el bloque ` ```json ... ``` ` y lo **normaliza al esquema rico**
@@ -340,12 +345,16 @@ Todas configuradas en `.env`. Las marcadas como `(opcional)` se omiten gracefull
 
 | Variable | Default | Descripción |
 |----------|---------|-------------|
-| `GEMINI_API_KEY` | — | **Obligatoria** — única API key de IA |
-| `GEMINI_MODEL` | `gemini-3.8-flash` | Modelo primario de Gemini |
-| `GEMINI_FALLBACK_MODELS` | `gemini-3.5-flash-lite` | Fallbacks en orden, separados por coma |
+| `GEMINI_API_KEY` | — | API key de Gemini (se requiere esta o `GROQ_API_KEY`) |
+| `GEMINI_MODEL` | `gemini-2.5-flash` | Modelo primario de Gemini |
+| `GEMINI_FALLBACK_MODELS` | `gemini-3.5-flash,gemini-2.5-flash-lite,gemini-3.1-flash-lite,gemini-3.5-flash-lite,gemini-3.8-flash` | Fallbacks en orden, separados por coma |
 | `MAX_TOKENS` | `32768` | Tokens de salida máximos |
+| `GROQ_API_KEY` | — | API key de Groq para el fallback externo (opcional) |
+| `GROQ_MODEL` | `llama-3.3-70b-versatile` | Modelo de Groq (ej. `meta-models/muse-spark-open`) |
 
-> **Cadena de fallback solo-Gemini.** Si el primario falla tras sus reintentos internos, el brief cae al siguiente modelo de `GEMINI_FALLBACK_MODELS` (misma API key). Si **toda** la cadena falla en una pasada, espera ~60s y la repite (2 pasadas) para dar tiempo a liberar cuota por minuto. El título, el footer y un banner de contingencia en el HTML muestran el modelo que **realmente** lo generó. Lógica en `generate_brief_with_fallback` (`modules/brief_generator.py`).
+> **Cadena de fallback.** Si el primario falla tras sus reintentos internos, el brief cae al siguiente modelo de `GEMINI_FALLBACK_MODELS` (misma API key). Si **toda** la cadena falla en una pasada, espera ~60s y la repite (2 pasadas) para dar tiempo a liberar cuota por minuto. Si toda la cadena Gemini falla, se intenta el fallback externo con Groq (`GROQ_MODEL`). El título, el footer y un banner de contingencia en el HTML muestran el modelo que **realmente** lo generó. Lógica en `generate_brief_with_fallback` (`modules/brief_generator.py`).
+
+> **Groq.** `Muse Spark Open` está en preview Enterprise en Groq, por lo que requiere acceso aprobado. En planes Free/Developer, `openai/gpt-oss-120b` limita a 8K TPM: un prompt más grande devuelve `HTTP 413 Request too large`.
 
 > **Límite de tokens.** `MAX_TOKENS` fija el techo de salida. Los modelos Flash/Lite se invocan con `thinking_config.thinking_budget=0` (todo el presupuesto va a la respuesta visible).
 
@@ -398,6 +407,9 @@ Todas configuradas en `.env`. Las marcadas como `(opcional)` se omiten gracefull
 
 # Gemini sin web search
 .\venv\Scripts\python.exe brief.py --no-search
+
+# Forzar Groq (prueba manual)
+.\venv\Scripts\python.exe brief.py --model groq
 ```
 
 ### Argumentos CLI
@@ -407,7 +419,7 @@ Todas configuradas en `.env`. Las marcadas como `(opcional)` se omiten gracefull
 | `--html` | Genera HTML local |
 | `--telegram` | Envía por Telegram (también genera HTML) |
 | `--both` | HTML + Telegram |
-| `--model {gemini}` | Fuerza el proveedor (solo gemini disponible) |
+| `--model {gemini,groq}` | Fuerza el proveedor de IA |
 | `--no-search` | Desactiva Google Search Grounding en Gemini |
 | `--no-open` | No abre navegador tras generar HTML |
 
@@ -759,8 +771,8 @@ Activa el venv o usa el Python directamente:
 
 ### Falta una API key
 
-Revisa `.env`. Solo `GEMINI_API_KEY` es estrictamente
-obligatoria. Las otras keys (CMC, FMP, CryptoPanic, Finnhub, Telegram) son opcionales
+Revisa `.env`. Se requiere al menos `GEMINI_API_KEY` o `GROQ_API_KEY`.
+Las otras keys (CMC, FMP, CryptoPanic, Finnhub, Telegram) son opcionales
 y la sección correspondiente se omite gracefully.
 
 ### Gemini devuelve `503 UNAVAILABLE`
@@ -778,6 +790,10 @@ dispara el aviso de fallo por Telegram).
 > Si Gemini falla por cuota (`RESOURCE_EXHAUSTED`) con Google Search activo, el
 > cliente reintenta inmediatamente **sin** grounding antes de saltar al modelo
 > siguiente de la cadena.
+
+Si **toda** la cadena Gemini falla, se activa el fallback externo con Groq
+(`GROQ_MODEL`). Si no hay `GROQ_API_KEY` o Groq también falla, se aborta la
+corrida. Para forzar Groq directamente usa `--model groq`.
 
 ### El brief no incluye el bloque JSON estructurado
 
@@ -829,10 +845,11 @@ Remove-Item -Recurse -Force .\.cache
 | Hecho | Fase 4: tiers de activos (5 principales fijos + 3 macro + 4 watchlist), FRED (curva + liquidez), VIX term structure, sector rotation, frontend dark minimalista |
 | Hecho | Fase 5: despliegue en la nube (GitHub Actions) — 3 corridas/día (Tokio/Londres/NY) disparadas por cron-job.org (DST por zona horaria) + fallbacks de geobloqueo (spot mirror + OKX) |
 | Hecho | Fase 6: evaluador v2 (niveles/TP/SL/RR + calibración + write-back), `perf.json`/`eval_results.jsonl`, dashboard de rendimiento en HTML, matriz de correlación, z-score/drawdown/volatilidad, sanitización de contexto, `thinking_config` |
-| Hecho | Fase 7: cadena de IA **solo-Gemini** (fallback entre modelos + 2 pasadas con espera por cuota); eliminación total de Groq (código, config, workflow) |
+| Hecho | Fase 7: cadena de IA Gemini (fallback entre modelos + 2 pasadas con espera por cuota) |
 | Hecho | Fase 8 (P0): medición confiable — evaluador v3 (horizonte fijo, decisión operativa, fill obligatorio, stop conservador, costos, yields en pp), motor determinista, US02Y `2YY=F`, nombres por sesión, evaluación en CI, tests + pytest |
 | Hecho | Fase 9 (P1): loop de aprendizaje — features por call, buckets (probability/confidence/quality/risk-ATR/sesgo), ejecución por activo en dashboard, feedback medido al prompt, `call_id`/`session` en el logbook |
 | Hecho | Fase 10 (P2 parcial): HTML del brief escapa markup crudo de la IA (anti-XSS + `</script>` en payloads), correlación con ventana reciente (no la más vieja), reuso del historial diario 2y de yfinance (sin doble descarga), volumen diario parcial marcado (`vela_diaria_parcial` + ratio aparte), bias engine con pesos adaptativos por ADX y sin dilución por datos ausentes (F&G solo crypto) |
+| Hecho | Fase 11: fallback multi-proveedor Groq (OpenAI-compatible, `llama-3.3-70b-versatile` / `meta-models/muse-spark-open`, retry y conmutación 403/404) |
 | Pendiente | Alertas intradía (re-runs cada 30 min con bias score delta > threshold) |
 | Pendiente | Análisis de cohortes por modelo IA (hit rate por proveedor/modelo en el dashboard) |
 
@@ -841,6 +858,9 @@ Remove-Item -Recurse -Force .\.cache
 ## Limitaciones conocidas
 
 - `--no-search` afecta a Gemini (desactiva Google Search Grounding).
+- El fallback Groq respeta el TPM del plan contratado: en Free/Developer,
+  `openai/gpt-oss-120b` limita a 8K TPM y un prompt largo puede devolver
+  `HTTP 413 Request too large`. Muse Spark Open requiere acceso Enterprise.
 - `thinking_config.thinking_budget=0` sólo aplica a modelos Gemini Flash/Lite/Flex
   soportados por el SDK; si el SDK no expone `ThinkingConfig`, se continúa sin él.
 - La validación de niveles del evaluador requiere historia: BTC/ETH/SOL
