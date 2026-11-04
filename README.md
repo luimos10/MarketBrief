@@ -205,11 +205,14 @@ Tiempo total típico: **10-15s en cold cache, <1s en warm cache.**
      `GEMINI_MODEL` (primario) → `GEMINI_FALLBACK_MODELS` (en orden). Si
      **toda** la cadena falla en una pasada, espera ~60s y la repite (2
      pasadas) para dar tiempo a liberar cuota por minuto.
-   - **Fallback externo Groq** (API OpenAI-compatible): si toda la cadena
-     Gemini falla, o con `--model groq`, se llama a `GROQ_MODEL` (default
+   - **Fallback externo OpenRouter / Groq** (API OpenAI-compatible): si toda
+     la cadena Gemini falla, o con `--model openrouter`, se llama primero a
+     `OPENROUTER_MODEL` (default
+     `nvidia/nemotron-3-ultra-550b-a55b:free`). Si OpenRouter falla o no hay
+     key, se intenta Groq (`GROQ_MODEL`, default
      `llama-3.3-70b-versatile`; también soporta
-     `meta-models/muse-spark-open`). Ante 403/404 conmuta automáticamente a
-     `openai/gpt-oss-120b`.
+     `meta-models/muse-spark-open`). Ante 403/404 con Groq conmuta
+     automáticamente a `openai/gpt-oss-120b`.
    - Retry 3x con exponential backoff para 429/5xx.
    - Temperatura 0.3 para consistencia (Muse Spark Open usa su default).
 
@@ -345,16 +348,21 @@ Todas configuradas en `.env`. Las marcadas como `(opcional)` se omiten gracefull
 
 | Variable | Default | Descripción |
 |----------|---------|-------------|
-| `GEMINI_API_KEY` | — | API key de Gemini (se requiere esta o `GROQ_API_KEY`) |
+| `GEMINI_API_KEY` | — | API key de Gemini (se requiere esta, `GROQ_API_KEY` u `OPENROUTER_API_KEY`) |
 | `GEMINI_MODEL` | `gemini-2.5-flash` | Modelo primario de Gemini |
 | `GEMINI_FALLBACK_MODELS` | `gemini-3.5-flash,gemini-2.5-flash-lite,gemini-3.1-flash-lite,gemini-3.5-flash-lite,gemini-3.8-flash` | Fallbacks en orden, separados por coma |
 | `MAX_TOKENS` | `32768` | Tokens de salida máximos |
+| `AI_MODEL` | `gemini` | Proveedor por defecto: `gemini`, `groq` u `openrouter` |
 | `GROQ_API_KEY` | — | API key de Groq para el fallback externo (opcional) |
 | `GROQ_MODEL` | `llama-3.3-70b-versatile` | Modelo de Groq (ej. `meta-models/muse-spark-open`) |
+| `OPENROUTER_API_KEY` | — | API key de OpenRouter para el fallback externo (opcional) |
+| `OPENROUTER_MODEL` | `nvidia/nemotron-3-ultra-550b-a55b:free` | Modelo de OpenRouter |
 
-> **Cadena de fallback.** Si el primario falla tras sus reintentos internos, el brief cae al siguiente modelo de `GEMINI_FALLBACK_MODELS` (misma API key). Si **toda** la cadena falla en una pasada, espera ~60s y la repite (2 pasadas) para dar tiempo a liberar cuota por minuto. Si toda la cadena Gemini falla, se intenta el fallback externo con Groq (`GROQ_MODEL`). El título, el footer y un banner de contingencia en el HTML muestran el modelo que **realmente** lo generó. Lógica en `generate_brief_with_fallback` (`modules/brief_generator.py`).
+> **Cadena de fallback.** Si el primario falla tras sus reintentos internos, el brief cae al siguiente modelo de `GEMINI_FALLBACK_MODELS` (misma API key). Si **toda** la cadena falla en una pasada, espera ~60s y la repite (2 pasadas) para dar tiempo a liberar cuota por minuto. Si toda la cadena Gemini falla, se intenta OpenRouter (`OPENROUTER_MODEL`) y, si también falla, Groq (`GROQ_MODEL`). El título, el footer y un banner de contingencia en el HTML muestran el modelo que **realmente** lo generó. Lógica en `generate_brief_with_fallback` (`modules/brief_generator.py`).
 
 > **Groq.** `Muse Spark Open` está en preview Enterprise en Groq, por lo que requiere acceso aprobado. En planes Free/Developer, `openai/gpt-oss-120b` limita a 8K TPM: un prompt más grande devuelve `HTTP 413 Request too large`.
+
+> **OpenRouter.** El modelo `nvidia/nemotron-3-ultra-550b-a55b:free` soporta 1M de contexto y hasta 65.536 tokens de salida. Los modelos `:free` tienen límites de requests por minuto/día según la cuenta; un `429` se reintenta con backoff.
 
 > **Límite de tokens.** `MAX_TOKENS` fija el techo de salida. Los modelos Flash/Lite se invocan con `thinking_config.thinking_budget=0` (todo el presupuesto va a la respuesta visible).
 
@@ -408,6 +416,9 @@ Todas configuradas en `.env`. Las marcadas como `(opcional)` se omiten gracefull
 # Gemini sin web search
 .\venv\Scripts\python.exe brief.py --no-search
 
+# Forzar OpenRouter (prueba manual)
+.\venv\Scripts\python.exe brief.py --model openrouter
+
 # Forzar Groq (prueba manual)
 .\venv\Scripts\python.exe brief.py --model groq
 ```
@@ -419,7 +430,7 @@ Todas configuradas en `.env`. Las marcadas como `(opcional)` se omiten gracefull
 | `--html` | Genera HTML local |
 | `--telegram` | Envía por Telegram (también genera HTML) |
 | `--both` | HTML + Telegram |
-| `--model {gemini,groq}` | Fuerza el proveedor de IA |
+| `--model {gemini,groq,openrouter}` | Fuerza el proveedor de IA |
 | `--no-search` | Desactiva Google Search Grounding en Gemini |
 | `--no-open` | No abre navegador tras generar HTML |
 
@@ -771,7 +782,7 @@ Activa el venv o usa el Python directamente:
 
 ### Falta una API key
 
-Revisa `.env`. Se requiere al menos `GEMINI_API_KEY` o `GROQ_API_KEY`.
+Revisa `.env`. Se requiere al menos `GEMINI_API_KEY`, `GROQ_API_KEY` u `OPENROUTER_API_KEY`.
 Las otras keys (CMC, FMP, CryptoPanic, Finnhub, Telegram) son opcionales
 y la sección correspondiente se omite gracefully.
 
@@ -791,9 +802,10 @@ dispara el aviso de fallo por Telegram).
 > cliente reintenta inmediatamente **sin** grounding antes de saltar al modelo
 > siguiente de la cadena.
 
-Si **toda** la cadena Gemini falla, se activa el fallback externo con Groq
-(`GROQ_MODEL`). Si no hay `GROQ_API_KEY` o Groq también falla, se aborta la
-corrida. Para forzar Groq directamente usa `--model groq`.
+Si **toda** la cadena Gemini falla, se activa el fallback externo con
+OpenRouter (`OPENROUTER_MODEL`) y después con Groq (`GROQ_MODEL`). Si no hay
+keys externas o ambos fallan, se aborta la corrida. Para forzar un proveedor
+usa `--model openrouter` o `--model groq`.
 
 ### El brief no incluye el bloque JSON estructurado
 
@@ -849,7 +861,7 @@ Remove-Item -Recurse -Force .\.cache
 | Hecho | Fase 8 (P0): medición confiable — evaluador v3 (horizonte fijo, decisión operativa, fill obligatorio, stop conservador, costos, yields en pp), motor determinista, US02Y `2YY=F`, nombres por sesión, evaluación en CI, tests + pytest |
 | Hecho | Fase 9 (P1): loop de aprendizaje — features por call, buckets (probability/confidence/quality/risk-ATR/sesgo), ejecución por activo en dashboard, feedback medido al prompt, `call_id`/`session` en el logbook |
 | Hecho | Fase 10 (P2 parcial): HTML del brief escapa markup crudo de la IA (anti-XSS + `</script>` en payloads), correlación con ventana reciente (no la más vieja), reuso del historial diario 2y de yfinance (sin doble descarga), volumen diario parcial marcado (`vela_diaria_parcial` + ratio aparte), bias engine con pesos adaptativos por ADX y sin dilución por datos ausentes (F&G solo crypto) |
-| Hecho | Fase 11: fallback multi-proveedor Groq (OpenAI-compatible, `llama-3.3-70b-versatile` / `meta-models/muse-spark-open`, retry y conmutación 403/404) |
+| Hecho | Fase 11: fallback multi-proveedor OpenRouter/Groq (OpenAI-compatible, `nvidia/nemotron-3-ultra-550b-a55b:free` / `llama-3.3-70b-versatile` / `meta-models/muse-spark-open`, retry y conmutación 403/404) |
 | Pendiente | Alertas intradía (re-runs cada 30 min con bias score delta > threshold) |
 | Pendiente | Análisis de cohortes por modelo IA (hit rate por proveedor/modelo en el dashboard) |
 
@@ -861,6 +873,8 @@ Remove-Item -Recurse -Force .\.cache
 - El fallback Groq respeta el TPM del plan contratado: en Free/Developer,
   `openai/gpt-oss-120b` limita a 8K TPM y un prompt largo puede devolver
   `HTTP 413 Request too large`. Muse Spark Open requiere acceso Enterprise.
+- OpenRouter con modelos `:free` tiene límites de requests por minuto/día.
+  Si se agota la cuota, el fallback pasa a Groq (si hay `GROQ_API_KEY`).
 - `thinking_config.thinking_budget=0` sólo aplica a modelos Gemini Flash/Lite/Flex
   soportados por el SDK; si el SDK no expone `ThinkingConfig`, se continúa sin él.
 - La validación de niveles del evaluador requiere historia: BTC/ETH/SOL

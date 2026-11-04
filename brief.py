@@ -82,7 +82,10 @@ def main():
     parser.add_argument("--no-open", action="store_true",
                         help="No abrir el HTML en el navegador")
     parser.add_argument(
-        "--model", choices=["gemini", "groq"], help="Proveedor de IA a usar (gemini o groq)")
+        "--model",
+        choices=["gemini", "groq", "openrouter"],
+        help="Proveedor de IA a usar (gemini, groq u openrouter)",
+    )
     args = parser.parse_args()
 
     # Setup
@@ -186,25 +189,54 @@ def main():
 
     logger.info(f"Prompt construido ({len(full_prompt)} caracteres)")
 
-    # ── Validar modelo de IA (solo Gemini) ──
+    # ── Validar modelo de IA ──
     ai_model = os.getenv("AI_MODEL", "gemini").lower()
-    if ai_model not in ("gemini", "groq"):
+    if ai_model not in ("gemini", "groq", "openrouter"):
         logger.error(
-            f"✗ AI_MODEL inválido: {ai_model}. Solo se soporta 'gemini' o 'groq'.")
+            f"✗ AI_MODEL inválido: {ai_model}. "
+            "Solo se soporta 'gemini', 'groq' u 'openrouter'.")
         sys.exit(1)
 
-    # ── PASO 3: Generar brief (cadena de fallback solo-Gemini) ──
-    logger.info("")
-    primary_label = config.GEMINI_MODEL
-    fallbacks_label = ", ".join(config.GEMINI_FALLBACK_MODELS) or "ninguno"
-    groq_note = f", externo: groq/{config.GROQ_MODEL}" if getattr(config, "GROQ_API_KEY", "") else ""
-    logger.info(
-        f"━━━ PASO 3/4: Generando brief (primario: gemini / "
-        f"{primary_label}, fallbacks: {fallbacks_label}{groq_note}) ━━━")
+    forced_provider = args.model or (
+        ai_model if ai_model in ("groq", "openrouter") else None
+    )
 
-    if not config.GEMINI_API_KEY and not getattr(config, "GROQ_API_KEY", ""):
+    # ── PASO 3: Generar brief (cadena de fallback multi-proveedor) ──
+    logger.info("")
+    if forced_provider == "openrouter":
+        primary_provider = "openrouter"
+        primary_model = config.OPENROUTER_MODEL
+    elif forced_provider == "groq":
+        primary_provider = "groq"
+        primary_model = config.GROQ_MODEL
+    else:
+        primary_provider = "gemini"
+        primary_model = config.GEMINI_MODEL
+
+    fallbacks_label = ", ".join(config.GEMINI_FALLBACK_MODELS) or "ninguno"
+    external_notes = []
+    if getattr(config, "OPENROUTER_API_KEY", ""):
+        external_notes.append(f"openrouter/{config.OPENROUTER_MODEL}")
+    if getattr(config, "GROQ_API_KEY", ""):
+        external_notes.append(f"groq/{config.GROQ_MODEL}")
+    external_note = f", externo: {', '.join(external_notes)}" if external_notes else ""
+    if forced_provider in ("openrouter", "groq"):
+        provider_summary = f"forzado: {primary_provider} / {primary_model}"
+    else:
+        provider_summary = (
+            f"primario: gemini / {primary_model}, "
+            f"fallbacks: {fallbacks_label}{external_note}"
+        )
+    logger.info(f"━━━ PASO 3/4: Generando brief ({provider_summary}) ━━━")
+
+    if not any((
+        config.GEMINI_API_KEY,
+        getattr(config, "GROQ_API_KEY", ""),
+        getattr(config, "OPENROUTER_API_KEY", ""),
+    )):
         logger.error(
-            "✗ Ninguna API key de IA configurada (GEMINI_API_KEY o GROQ_API_KEY). "
+            "✗ Ninguna API key de IA configurada "
+            "(GEMINI_API_KEY, GROQ_API_KEY u OPENROUTER_API_KEY). "
             "Revisa tu .env o los secrets.")
         sys.exit(1)
 
@@ -219,7 +251,11 @@ def main():
         enable_search=not args.no_search,
         groq_api_key=getattr(config, "GROQ_API_KEY", "") or "",
         groq_model=getattr(config, "GROQ_MODEL", "llama-3.3-70b-versatile"),
-        forced_provider=args.model,
+        openrouter_api_key=getattr(config, "OPENROUTER_API_KEY", "") or "",
+        openrouter_model=getattr(
+            config, "OPENROUTER_MODEL", "nvidia/nemotron-3-ultra-550b-a55b:free"
+        ),
+        forced_provider=forced_provider,
     )
 
     if not brief_text:
@@ -314,11 +350,12 @@ def main():
     logger.info("━━━ PASO 4/4: Entregando brief ━━━")
     from modules.delivery import deliver_brief
 
-    is_fallback = used_model != primary_label
+    is_fallback = (used_provider, used_model) != (primary_provider, primary_model)
     if is_fallback:
         logger.warning(
-            f"⚠ Modo de contingencia activo: brief generado con gemini "
-            f"({used_model}) en lugar del primario ({primary_label})"
+            f"⚠ Modo de contingencia activo: brief generado con "
+            f"{used_provider} ({used_model}) en lugar del primario "
+            f"{primary_provider} ({primary_model})"
         )
 
     delivery_config = {
@@ -329,7 +366,7 @@ def main():
         "ai_provider": used_provider,
         "ai_model": used_model,
         "is_fallback": is_fallback,
-        "primary_label": f"{ai_model}:{primary_label}",
+        "primary_label": f"{primary_provider}:{primary_model}",
         "prompt_version": getattr(config, "PROMPT_VERSION", ""),
         "structured": structured,
         "perf": _load_perf(config.OUTPUT_DIR),

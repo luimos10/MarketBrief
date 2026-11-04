@@ -58,6 +58,13 @@ MAX_TOKENS = int(os.getenv("MAX_TOKENS", "32768"))
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
+# OpenRouter (proveedor externo OpenAI-compatible; modelos gratuitos y de pago)
+# https://openrouter.ai/models
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+OPENROUTER_MODEL = os.getenv(
+    "OPENROUTER_MODEL", "nvidia/nemotron-3-ultra-550b-a55b:free"
+)
+
 # ═══════════════════════════════════════════════════════
 # ACTIVOS A MONITOREAR (estructura por tiers)
 # ═══════════════════════════════════════════════════════

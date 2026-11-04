@@ -175,51 +175,59 @@ def generate_brief(
 
 
 # ═══════════════════════════════════════════════════════
-# GENERACIÓN CON GROQ (OpenAI-compatible, 131k context)
+# GENERACIÓN CON PROVEEDORES OPENAI-COMPATIBLES (Groq / OpenRouter)
 # ═══════════════════════════════════════════════════════
 
+GROQ_BASE_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MUSE_MODEL = "meta-models/muse-spark-open"
 GROQ_DEFAULT_MODEL = "llama-3.3-70b-versatile"
 GROQ_FALLBACK_MODEL = "openai/gpt-oss-120b"
 GROQ_OUTPUT_LIMITS = {
     GROQ_MUSE_MODEL: 131072,
     GROQ_DEFAULT_MODEL: 32768,
+    GROQ_FALLBACK_MODEL: 32768,
+}
+
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1/chat/completions"
+OPENROUTER_DEFAULT_MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free"
+OPENROUTER_OUTPUT_LIMITS = {
+    OPENROUTER_DEFAULT_MODEL: 65536,
 }
 
 
-def generate_brief_groq(
+def _generate_brief_chat_completion(
     system_prompt: str,
     user_prompt: str,
     api_key: str,
-    model: str = GROQ_DEFAULT_MODEL,
+    model: str,
+    *,
+    base_url: str,
+    provider_name: str,
     max_tokens: int = 8192,
     max_retries: int = 3,
+    output_limits: dict[str, int] | None = None,
+    fallback_model: str | None = None,
+    extra_headers: dict[str, str] | None = None,
+    temperature: float | None = 0.3,
 ) -> str:
     """
-    Genera el briefing usando la API de Groq (OpenAI-compatible).
+    Genera el briefing usando una API OpenAI-compatible.
 
-    Args:
-        system_prompt: Instrucciones del sistema
-        user_prompt: El prompt completo con datos + template
-        api_key: API key de Groq (GROQ_API_KEY)
-        model: Modelo de Groq (ej: llama-3.3-70b-versatile)
-        max_tokens: Tokens máximos de salida
-        max_retries: Reintentos ante errores transitorios
-
-    Returns:
-        El briefing generado en formato Markdown
+    Sirve para Groq y OpenRouter, que comparten el mismo formato de
+    request/response. La lógica de reintentos, fallback y diagnóstico
+    de límites es común a ambos proveedores.
     """
-    logger.info(f"→ Llamando a Groq ({model})...")
+    logger.info(f"→ Llamando a {provider_name} ({model})...")
     logger.info(f"  Prompt size: ~{len(user_prompt)} caracteres")
 
-    url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
-    # Algunos modelos Groq aceptan hasta 131k de salida; el resto, 8192.
-    is_muse = model == GROQ_MUSE_MODEL
-    output_ceiling = GROQ_OUTPUT_LIMITS.get(model, 8192)
+    if extra_headers:
+        headers.update(extra_headers)
+
+    output_ceiling = (output_limits or {}).get(model, 8192)
     capped_tokens = min(max_tokens, output_ceiling) if max_tokens else output_ceiling
 
     payload = {
@@ -230,16 +238,15 @@ def generate_brief_groq(
         ],
         "max_tokens": capped_tokens,
     }
-    # Muse Spark Open está optimizado para su temperatura por defecto.
-    if not is_muse:
-        payload["temperature"] = 0.3
+    if temperature is not None:
+        payload["temperature"] = temperature
 
     start_time = time.time()
 
     for attempt in range(1, max_retries + 1):
         try:
             with httpx.Client(timeout=120.0) as client:
-                resp = client.post(url, headers=headers, json=payload)
+                resp = client.post(base_url, headers=headers, json=payload)
 
             elapsed = round(time.time() - start_time, 1)
 
@@ -247,8 +254,8 @@ def generate_brief_groq(
                 data = resp.json()
                 choices = data.get("choices", [])
                 if not choices:
-                    logger.error("Groq devolvió una respuesta sin 'choices'")
-                    return "ERROR: Groq devolvió una respuesta vacía."
+                    logger.error(f"{provider_name} devolvió una respuesta sin 'choices'")
+                    return f"ERROR: {provider_name} devolvió una respuesta vacía."
 
                 choice = choices[0]
                 message = choice.get("message", {})
@@ -256,65 +263,74 @@ def generate_brief_groq(
                 finish_reason = choice.get("finish_reason", "unknown")
 
                 usage = data.get("usage", {})
-                logger.info(f"✓ Respuesta de Groq recibida en {elapsed}s")
+                logger.info(f"✓ Respuesta de {provider_name} recibida en {elapsed}s")
                 if usage:
                     logger.info(
                         f"  Tokens — Input: {usage.get('prompt_tokens')}, "
                         f"Output: {usage.get('completion_tokens')}, "
                         f"Total: {usage.get('total_tokens')}"
                     )
+                    details = usage.get("completion_tokens_details") or {}
+                    reasoning_tokens = details.get("reasoning_tokens")
+                    if reasoning_tokens:
+                        logger.info(f"  Reasoning tokens: {reasoning_tokens}")
                 logger.info(f"  finish_reason: {finish_reason}")
 
                 if finish_reason == "length":
                     logger.warning(
-                        "⚠ finish_reason=length — el brief en Groq se truncó. "
+                        f"⚠ finish_reason=length — el brief en {provider_name} se truncó. "
                         "Considera aumentar max_tokens."
                     )
 
                 if not content:
-                    logger.error("La respuesta de Groq no contenía texto")
-                    return "ERROR: La respuesta de Groq estaba vacía."
+                    logger.error(f"La respuesta de {provider_name} no contenía texto")
+                    return f"ERROR: La respuesta de {provider_name} estaba vacía."
 
                 return content
 
             err_text = resp.text
             err_code = resp.status_code
-            logger.warning(f"  Groq HTTP {err_code}: {err_text[:200]}")
+            logger.warning(f"  {provider_name} HTTP {err_code}: {err_text[:200]}")
 
             # Conmutación automática si el modelo no está disponible o no hay
             # acceso Enterprise (403/404).
-            if err_code in (403, 404) and model != GROQ_FALLBACK_MODEL:
+            if err_code in (403, 404) and fallback_model and model != fallback_model:
                 logger.warning(
-                    f"  Modelo Groq '{model}' no disponible (HTTP {err_code}). "
-                    f"Conmutando automáticamente a '{GROQ_FALLBACK_MODEL}'..."
+                    f"  Modelo {provider_name} '{model}' no disponible (HTTP {err_code}). "
+                    f"Conmutando automáticamente a '{fallback_model}'..."
                 )
-                return generate_brief_groq(
+                return _generate_brief_chat_completion(
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
                     api_key=api_key,
-                    model=GROQ_FALLBACK_MODEL,
+                    model=fallback_model,
+                    base_url=base_url,
+                    provider_name=provider_name,
                     max_tokens=max_tokens,
                     max_retries=max_retries,
+                    output_limits=output_limits,
+                    fallback_model=None,
+                    extra_headers=extra_headers,
+                    temperature=temperature,
                 )
 
             # 413: el prompt supera el límite de tokens por minuto del plan.
             if err_code == 413:
                 logger.error(
-                    "  El prompt excede el límite TPM del plan Groq. "
-                    "Reduce el prompt o actualiza el plan; en Free/Developer "
-                    "gpt-oss-120b está limitado a 8K TPM."
+                    f"  El prompt excede el límite TPM/rate limit de {provider_name}. "
+                    "Reduce el prompt o actualiza el plan del proveedor."
                 )
 
             if err_code in (429, 500, 502, 503, 504) and attempt < max_retries:
                 wait_seconds = attempt * 4
                 logger.warning(
-                    f"  Groq devolvió {err_code}. Reintentando en {wait_seconds}s "
+                    f"  {provider_name} devolvió {err_code}. Reintentando en {wait_seconds}s "
                     f"({attempt}/{max_retries})..."
                 )
                 time.sleep(wait_seconds)
                 continue
 
-            return f"ERROR: Groq HTTP {err_code}: {err_text}"
+            return f"ERROR: {provider_name} HTTP {err_code}: {err_text}"
 
         except Exception as e:
             err_str = str(e)
@@ -324,19 +340,67 @@ def generate_brief_groq(
                 or "RemoteDisconnected" in err_str
                 or "SSL" in err_str
             )
+
             if transient and attempt < max_retries:
                 wait_seconds = attempt * 3
                 logger.warning(
-                    f"  Error de conexión con Groq ({e}). Reintentando en {wait_seconds}s "
+                    f"  Error de conexión con {provider_name} ({e}). Reintentando en {wait_seconds}s "
                     f"({attempt}/{max_retries})..."
                 )
                 time.sleep(wait_seconds)
                 continue
 
-            logger.error(f"Error llamando a Groq ({model}): {e}")
+            logger.error(f"Error llamando a {provider_name} ({model}): {e}")
             return f"ERROR: {e}"
 
-    return "ERROR: Reintentos agotados en Groq."
+    return f"ERROR: Reintentos agotados en {provider_name}."
+
+
+def generate_brief_groq(
+    system_prompt: str,
+    user_prompt: str,
+    api_key: str,
+    model: str = GROQ_DEFAULT_MODEL,
+    max_tokens: int = 8192,
+    max_retries: int = 3,
+) -> str:
+    """Genera el briefing usando la API de Groq (OpenAI-compatible)."""
+    return _generate_brief_chat_completion(
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        api_key=api_key,
+        model=model,
+        base_url=GROQ_BASE_URL,
+        provider_name="Groq",
+        max_tokens=max_tokens,
+        max_retries=max_retries,
+        output_limits=GROQ_OUTPUT_LIMITS,
+        fallback_model=GROQ_FALLBACK_MODEL,
+        temperature=None if model == GROQ_MUSE_MODEL else 0.3,
+    )
+
+
+def generate_brief_openrouter(
+    system_prompt: str,
+    user_prompt: str,
+    api_key: str,
+    model: str = OPENROUTER_DEFAULT_MODEL,
+    max_tokens: int = 8192,
+    max_retries: int = 3,
+) -> str:
+    """Genera el briefing usando OpenRouter (OpenAI-compatible)."""
+    return _generate_brief_chat_completion(
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        api_key=api_key,
+        model=model,
+        base_url=OPENROUTER_BASE_URL,
+        provider_name="OpenRouter",
+        max_tokens=max_tokens,
+        max_retries=max_retries,
+        output_limits=OPENROUTER_OUTPUT_LIMITS,
+        extra_headers={"X-Title": "Market Brief"},
+    )
 
 
 # ═══════════════════════════════════════════════════════
@@ -359,19 +423,46 @@ def generate_brief_with_fallback(
     max_chain_passes: int = 2,
     groq_api_key: str = "",
     groq_model: str = GROQ_DEFAULT_MODEL,
+    openrouter_api_key: str = "",
+    openrouter_model: str = OPENROUTER_DEFAULT_MODEL,
     forced_provider: str | None = None,
 ) -> tuple[str | None, str | None, str | None]:
     """
     Genera el brief con arquitectura híbrida multi-proveedor:
-    1. Si se solicita --model groq: ejecuta directamente con Groq.
+    1. Si se solicita --model groq/openrouter: ejecuta directamente ese proveedor.
     2. En flujo normal: intenta la cadena de modelos Gemini (primario + fallbacks).
-    3. Si TODA la cadena Gemini falla: recurre a Groq (llama-3.3-70b-versatile) como paracaídas externo.
+    3. Si TODA la cadena Gemini falla: recurre a OpenRouter y luego a Groq
+       como paracaídas externos.
 
     Returns:
         (brief_text, proveedor_usado, modelo_usado) si algún modelo responde;
         (None, None, None) si todos fallan.
     """
-    # ── Caso 1: Proveedor Groq forzado explícitamente ──
+    # ── Caso 1: Proveedor OpenRouter forzado explícitamente ──
+    if forced_provider == "openrouter":
+        if not openrouter_api_key:
+            logger.error(
+                "✗ OPENROUTER_API_KEY no configurada pero se solicitó proveedor 'openrouter'."
+            )
+            return None, None, None
+        logger.info(
+            f"→ Ejecutando directamente con OpenRouter ({openrouter_model}) "
+            "por solicitud explícita..."
+        )
+        text = generate_brief_openrouter(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            api_key=openrouter_api_key,
+            model=openrouter_model,
+            max_tokens=gemini_max_tokens,
+        )
+        if text and not text.startswith("ERROR"):
+            logger.info(f"✓ Brief generado con openrouter ({openrouter_model})")
+            return text, "openrouter", openrouter_model
+        logger.error(f"✗ OpenRouter falló: {text}")
+        return None, None, None
+
+    # ── Caso 2: Proveedor Groq forzado explícitamente ──
     if forced_provider == "groq":
         if not groq_api_key:
             logger.error("✗ GROQ_API_KEY no configurada pero se solicitó proveedor 'groq'.")
@@ -390,7 +481,7 @@ def generate_brief_with_fallback(
         logger.error(f"✗ Groq falló: {text}")
         return None, None, None
 
-    # ── Caso 2: Cadena Gemini (flujo principal) ──
+    # ── Caso 3: Cadena Gemini (flujo principal) ──
     if gemini_api_key:
         fallbacks = gemini_fallback_models or []
         candidates: list[str] = []
@@ -440,24 +531,43 @@ def generate_brief_with_fallback(
     else:
         logger.warning("⚠ GEMINI_API_KEY no configurada. Saltando directo a proveedores externos.")
 
-    # ── Caso 3: Fallback Externo Multi-Proveedor (Groq) ──
-    if groq_api_key and (forced_provider != "gemini"):
-        logger.warning(
-            f"⚠ Activando fallback multi-proveedor externo: Groq ({groq_model})..."
-        )
-        text = generate_brief_groq(
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-            api_key=groq_api_key,
-            model=groq_model,
-            max_tokens=gemini_max_tokens,
-        )
+    # ── Caso 4: Fallback Externo Multi-Proveedor (OpenRouter / Groq) ──
+    if forced_provider != "gemini":
+        if openrouter_api_key:
+            logger.warning(
+                f"⚠ Activando fallback externo: OpenRouter ({openrouter_model})..."
+            )
+            text = generate_brief_openrouter(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                api_key=openrouter_api_key,
+                model=openrouter_model,
+                max_tokens=gemini_max_tokens,
+            )
 
-        if text and not text.startswith("ERROR"):
-            logger.info(f"✓ Brief generado con fallback groq ({groq_model})")
-            return text, "groq", groq_model
+            if text and not text.startswith("ERROR"):
+                logger.info(f"✓ Brief generado con fallback openrouter ({openrouter_model})")
+                return text, "openrouter", openrouter_model
 
-        logger.error(f"✗ Fallback Groq también falló: {text}")
+            logger.error(f"✗ Fallback OpenRouter también falló: {text}")
+
+        if groq_api_key:
+            logger.warning(
+                f"⚠ Activando fallback externo: Groq ({groq_model})..."
+            )
+            text = generate_brief_groq(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                api_key=groq_api_key,
+                model=groq_model,
+                max_tokens=gemini_max_tokens,
+            )
+
+            if text and not text.startswith("ERROR"):
+                logger.info(f"✓ Brief generado con fallback groq ({groq_model})")
+                return text, "groq", groq_model
+
+            logger.error(f"✗ Fallback Groq también falló: {text}")
 
     logger.error("✗ Ningún proveedor de IA pudo generar el brief.")
     return None, None, None
