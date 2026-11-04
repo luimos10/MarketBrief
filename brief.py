@@ -82,7 +82,7 @@ def main():
     parser.add_argument("--no-open", action="store_true",
                         help="No abrir el HTML en el navegador")
     parser.add_argument(
-        "--model", choices=["gemini"], help="Modelo de IA a usar (solo gemini)")
+        "--model", choices=["gemini", "groq"], help="Proveedor de IA a usar (gemini o groq)")
     args = parser.parse_args()
 
     # Setup
@@ -188,22 +188,24 @@ def main():
 
     # ── Validar modelo de IA (solo Gemini) ──
     ai_model = os.getenv("AI_MODEL", "gemini").lower()
-    if ai_model != "gemini":
+    if ai_model not in ("gemini", "groq"):
         logger.error(
-            f"✗ AI_MODEL inválido: {ai_model}. Solo se soporta 'gemini'.")
+            f"✗ AI_MODEL inválido: {ai_model}. Solo se soporta 'gemini' o 'groq'.")
         sys.exit(1)
 
     # ── PASO 3: Generar brief (cadena de fallback solo-Gemini) ──
     logger.info("")
     primary_label = config.GEMINI_MODEL
     fallbacks_label = ", ".join(config.GEMINI_FALLBACK_MODELS) or "ninguno"
+    groq_note = f", externo: groq/{config.GROQ_MODEL}" if getattr(config, "GROQ_API_KEY", "") else ""
     logger.info(
         f"━━━ PASO 3/4: Generando brief (primario: gemini / "
-        f"{primary_label}, fallback: {fallbacks_label}) ━━━")
+        f"{primary_label}, fallbacks: {fallbacks_label}{groq_note}) ━━━")
 
-    if not config.GEMINI_API_KEY:
+    if not config.GEMINI_API_KEY and not getattr(config, "GROQ_API_KEY", ""):
         logger.error(
-            "✗ GEMINI_API_KEY no configurada. Revisa tu .env o los secrets.")
+            "✗ Ninguna API key de IA configurada (GEMINI_API_KEY o GROQ_API_KEY). "
+            "Revisa tu .env o los secrets.")
         sys.exit(1)
 
     from modules.brief_generator import generate_brief_with_fallback
@@ -215,6 +217,9 @@ def main():
         gemini_fallback_models=config.GEMINI_FALLBACK_MODELS,
         gemini_max_tokens=config.MAX_TOKENS,
         enable_search=not args.no_search,
+        groq_api_key=getattr(config, "GROQ_API_KEY", "") or "",
+        groq_model=getattr(config, "GROQ_MODEL", "llama-3.3-70b-versatile"),
+        forced_provider=args.model,
     )
 
     if not brief_text:

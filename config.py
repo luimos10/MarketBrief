@@ -34,20 +34,29 @@ PROMPT_VERSION = os.getenv("PROMPT_VERSION", "v1.5")
 FRED_API_KEY = os.getenv("FRED_API_KEY", "")
 
 # ═══════════════════════════════════════════════════════
-# MODELOS DE IA (solo Gemini)
+# MODELOS DE IA
 # ═══════════════════════════════════════════════════════
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 # Fallbacks en orden (separados por coma). Se intentan solo si el modelo
 # primario falla tras sus reintentos internos.
 GEMINI_FALLBACK_MODELS = [
     m.strip()
-    for m in os.getenv("GEMINI_FALLBACK_MODELS", "gemini-3.5-flash-lite").split(",")
+    for m in os.getenv(
+        "GEMINI_FALLBACK_MODELS",
+        "gemini-3.5-flash,gemini-2.5-flash-lite,gemini-3.1-flash-lite,gemini-3.5-flash-lite,gemini-3.8-flash",
+    ).split(",")
     if m.strip()
 ]
 # MAX_TOKENS: techo de output del LLM. El template Prompt Maestro (v1.5)
 # puede consumir ~16K tokens de salida; 32768 deja margen para evitar
 # truncamiento (finish_reason=MAX_TOKENS).
 MAX_TOKENS = int(os.getenv("MAX_TOKENS", "32768"))
+
+# Groq (fallback multi-proveedor ultra-rápido en LPUs)
+# Modelo de prueba manual; para producción puede usarse Muse Spark Open:
+# https://console.groq.com/docs/model/meta-models/muse-spark-open
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
 # ═══════════════════════════════════════════════════════
 # ACTIVOS A MONITOREAR (estructura por tiers)
