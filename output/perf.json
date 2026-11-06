@@ -1,11 +1,11 @@
 {
   "schema_version": 2,
-  "generated_at": "2026-11-05T23:31:08Z",
+  "generated_at": "2026-11-06T07:31:13Z",
   "aggregated": {
     "overall": {
       "hit": 240,
-      "miss": 592,
-      "skip": 2010,
+      "miss": 593,
+      "skip": 2021,
       "calibration": {
         "probability": 46.3,
         "actual": 28.8,
@@ -15,16 +15,16 @@
       "hit_rate": 28.8
     },
     "bias": {
-      "hit": 833,
-      "miss": 1816,
+      "hit": 838,
+      "miss": 1823,
       "skip": 193,
-      "hit_rate": 31.4
+      "hit_rate": 31.5
     },
     "by_asset": {
       "BTC": {
         "hit": 27,
         "miss": 89,
-        "skip": 220,
+        "skip": 221,
         "hit_rate": 23.3,
         "execution": {
           "tp1": 0,
@@ -40,7 +40,7 @@
       "ETH": {
         "hit": 1,
         "miss": 15,
-        "skip": 41,
+        "skip": 42,
         "hit_rate": 6.2,
         "execution": {
           "tp1": 0,
@@ -55,24 +55,24 @@
       },
       "GOLD": {
         "hit": 25,
-        "miss": 81,
+        "miss": 82,
         "skip": 230,
-        "hit_rate": 23.6,
+        "hit_rate": 23.4,
         "execution": {
           "tp1": 0,
           "tp2": 0,
-          "stop": 7,
+          "stop": 8,
           "no_fill": 58,
           "pending": 0,
           "none": 27,
-          "r_mean": -1.057,
-          "n_r": 7
+          "r_mean": -1.083,
+          "n_r": 8
         }
       },
       "NASDAQ": {
         "hit": 60,
         "miss": 124,
-        "skip": 152,
+        "skip": 153,
         "hit_rate": 32.6,
         "execution": {
           "tp1": 1,
@@ -88,7 +88,7 @@
       "OIL": {
         "hit": 77,
         "miss": 125,
-        "skip": 133,
+        "skip": 134,
         "hit_rate": 38.1,
         "execution": {
           "tp1": 2,
@@ -104,7 +104,7 @@
       "SOL": {
         "hit": 2,
         "miss": 6,
-        "skip": 48,
+        "skip": 49,
         "hit_rate": 25.0,
         "execution": {
           "tp1": 0,
@@ -120,7 +120,7 @@
       "SP500": {
         "hit": 45,
         "miss": 138,
-        "skip": 153,
+        "skip": 154,
         "hit_rate": 24.6,
         "execution": {
           "tp1": 0,
@@ -136,7 +136,7 @@
       "SILVER": {
         "hit": 3,
         "miss": 9,
-        "skip": 41,
+        "skip": 42,
         "hit_rate": 25.0,
         "execution": {
           "tp1": 1,
@@ -152,25 +152,25 @@
       "DXY": {
         "hit": 0,
         "miss": 1,
-        "skip": 318,
+        "skip": 319,
         "hit_rate": 0.0
       },
       "US10Y": {
         "hit": 0,
         "miss": 1,
-        "skip": 318,
+        "skip": 319,
         "hit_rate": 0.0
       },
       "VIX": {
         "hit": 0,
         "miss": 3,
-        "skip": 316,
+        "skip": 317,
         "hit_rate": 0.0
       },
       "US02Y": {
         "hit": 0,
         "miss": 0,
-        "skip": 40,
+        "skip": 41,
         "hit_rate": null
       }
     },
@@ -195,9 +195,9 @@
       },
       "v1.5": {
         "hit": 10,
-        "miss": 28,
-        "skip": 298,
-        "hit_rate": 26.3
+        "miss": 29,
+        "skip": 309,
+        "hit_rate": 25.6
       }
     },
     "by_session": {
@@ -215,9 +215,9 @@
       },
       "tokio": {
         "hit": 2,
-        "miss": 7,
-        "skip": 75,
-        "hit_rate": 22.2
+        "miss": 8,
+        "skip": 86,
+        "hit_rate": 20.0
       },
       "londres": {
         "hit": 5,
@@ -241,29 +241,29 @@
       },
       "SHORT": {
         "hit": 66,
-        "miss": 156,
+        "miss": 157,
         "skip": 3,
-        "hit_rate": 29.7
+        "hit_rate": 29.6
       },
       "UNKNOWN": {
         "hit": 0,
         "miss": 6,
-        "skip": 263,
+        "skip": 270,
         "hit_rate": 0.0
       },
       "NO TRADE": {
         "hit": 0,
         "miss": 0,
-        "skip": 60,
+        "skip": 64,
         "hit_rate": null
       }
     },
     "by_probability": {
       "n/d": {
         "hit": 221,
-        "miss": 558,
-        "skip": 1997,
-        "hit_rate": 28.4
+        "miss": 559,
+        "skip": 2008,
+        "hit_rate": 28.3
       },
       "50-60%": {
         "hit": 3,
@@ -288,7 +288,7 @@
       "n/d": {
         "hit": 221,
         "miss": 555,
-        "skip": 1695,
+        "skip": 1702,
         "hit_rate": 28.5
       },
       "50-60": {
@@ -299,14 +299,14 @@
       },
       ">=70": {
         "hit": 16,
-        "miss": 28,
-        "skip": 64,
-        "hit_rate": 36.4
+        "miss": 29,
+        "skip": 65,
+        "hit_rate": 35.6
       },
       "60-70": {
         "hit": 3,
         "miss": 7,
-        "skip": 87,
+        "skip": 90,
         "hit_rate": 30.0
       },
       "<50": {
@@ -331,9 +331,9 @@
       },
       "A": {
         "hit": 9,
-        "miss": 8,
-        "skip": 14,
-        "hit_rate": 52.9
+        "miss": 9,
+        "skip": 16,
+        "hit_rate": 50.0
       },
       "A-": {
         "hit": 0,
@@ -350,13 +350,13 @@
       "B": {
         "hit": 10,
         "miss": 25,
-        "skip": 69,
+        "skip": 72,
         "hit_rate": 28.6
       },
       "C": {
         "hit": 0,
         "miss": 1,
-        "skip": 42,
+        "skip": 48,
         "hit_rate": 0.0
       },
       "B+": {
@@ -382,7 +382,7 @@
       "n/d": {
         "hit": 229,
         "miss": 570,
-        "skip": 2009,
+        "skip": 2020,
         "hit_rate": 28.7
       },
       "0.8-1.5 ATR": {
@@ -399,9 +399,9 @@
       },
       "<0.8 ATR": {
         "hit": 8,
-        "miss": 7,
+        "miss": 8,
         "skip": 0,
-        "hit_rate": 53.3
+        "hit_rate": 50.0
       }
     },
     "by_bias": {
@@ -414,32 +414,32 @@
       "neutral (-25..25)": {
         "hit": 0,
         "miss": 3,
-        "skip": 167,
+        "skip": 175,
         "hit_rate": 0.0
       },
       "alcista (>25)": {
         "hit": 8,
         "miss": 18,
-        "skip": 68,
+        "skip": 70,
         "hit_rate": 30.8
       },
       "bajista (<-25)": {
         "hit": 3,
-        "miss": 8,
-        "skip": 64,
-        "hit_rate": 27.3
+        "miss": 9,
+        "skip": 65,
+        "hit_rate": 25.0
       }
     },
     "execution": {
       "tp1": 4,
       "tp2": 0,
-      "stop": 85,
+      "stop": 86,
       "no_fill": 386,
       "pending": 0,
       "none": 196,
-      "r_sum": -94.94,
-      "r_mean": -1.067,
-      "n_r": 89
+      "r_sum": -96.2,
+      "r_mean": -1.069,
+      "n_r": 90
     }
   }
 }
