@@ -1,0 +1,243 @@
+{
+  "report": {
+    "date": "2026-11-17",
+    "market_bias": "Bajista",
+    "market_leader": "DXY",
+    "model": "gemini:gemini-3.1-flash-lite",
+    "prompt_version": "v1.5"
+  },
+  "regime": {
+    "primary": "Risk-Off",
+    "secondary": "Liquidity Contraction",
+    "confidence": 0.6
+  },
+  "aggregate": {
+    "main_assets_average_bias": -39.4,
+    "decision": "WAIT",
+    "_source": "decision_engine"
+  },
+  "assets": {
+    "BTC": {
+      "tier": "P",
+      "price": 64672.1,
+      "bias": -21,
+      "confidence": 0.6,
+      "signal_quality": "NO TRADE",
+      "decision": "WAIT",
+      "entry": null,
+      "stop": null,
+      "tp1": null,
+      "tp2": null,
+      "rr": null,
+      "probability": 0.23,
+      "ev_r": null
+    },
+    "SP500": {
+      "tier": "P",
+      "price": 7422.75,
+      "bias": -35,
+      "confidence": 0.6,
+      "signal_quality": "NO TRADE",
+      "decision": "WAIT",
+      "entry": null,
+      "stop": null,
+      "tp1": null,
+      "tp2": null,
+      "rr": null,
+      "probability": 0.23,
+      "ev_r": null
+    },
+    "NASDAQ": {
+      "tier": "P",
+      "price": 27303.5,
+      "bias": -41,
+      "confidence": 0.6,
+      "signal_quality": "NO TRADE",
+      "decision": "WAIT",
+      "entry": null,
+      "stop": null,
+      "tp1": null,
+      "tp2": null,
+      "rr": null,
+      "probability": 0.23,
+      "ev_r": null
+    },
+    "GOLD": {
+      "tier": "P",
+      "price": 3879.1,
+      "bias": -77,
+      "confidence": 0.6,
+      "signal_quality": "NO TRADE",
+      "decision": "WAIT",
+      "entry": null,
+      "stop": null,
+      "tp1": null,
+      "tp2": null,
+      "rr": null,
+      "probability": 0.23,
+      "ev_r": null
+    },
+    "OIL": {
+      "tier": "P",
+      "price": 84.92,
+      "bias": -23,
+      "confidence": 0.6,
+      "signal_quality": "NO TRADE",
+      "decision": "WAIT",
+      "entry": null,
+      "stop": null,
+      "tp1": null,
+      "tp2": null,
+      "rr": null,
+      "probability": 0.23,
+      "ev_r": null
+    },
+    "DXY": {
+      "tier": "M",
+      "price": 103.506,
+      "bias": 72,
+      "confidence": 0.7,
+      "signal_quality": "N/A",
+      "decision": "Monitor",
+      "entry": null,
+      "stop": null,
+      "tp1": null,
+      "tp2": null,
+      "rr": null,
+      "probability": null,
+      "ev_r": null
+    },
+    "VIX": {
+      "tier": "M",
+      "price": 22.91,
+      "bias": 58,
+      "confidence": 0.7,
+      "signal_quality": "N/A",
+      "decision": "Monitor",
+      "entry": null,
+      "stop": null,
+      "tp1": null,
+      "tp2": null,
+      "rr": null,
+      "probability": null,
+      "ev_r": null
+    },
+    "US10Y": {
+      "tier": "M",
+      "price": 5.121,
+      "bias": 70,
+      "confidence": 0.7,
+      "signal_quality": "N/A",
+      "decision": "Monitor",
+      "entry": null,
+      "stop": null,
+      "tp1": null,
+      "tp2": null,
+      "rr": null,
+      "probability": null,
+      "ev_r": null
+    },
+    "ETH": {
+      "tier": "W",
+      "price": 1830.25,
+      "bias": -30,
+      "confidence": 0.6,
+      "signal_quality": "NO TRADE",
+      "decision": "WAIT",
+      "entry": null,
+      "stop": null,
+      "tp1": null,
+      "tp2": null,
+      "rr": null,
+      "probability": 0.23,
+      "ev_r": null
+    },
+    "SOL": {
+      "tier": "W",
+      "price": 72.94,
+      "bias": -30,
+      "confidence": 0.6,
+      "signal_quality": "NO TRADE",
+      "decision": "WAIT",
+      "entry": null,
+      "stop": null,
+      "tp1": null,
+      "tp2": null,
+      "rr": null,
+      "probability": 0.23,
+      "ev_r": null
+    },
+    "SILVER": {
+      "tier": "W",
+      "price": 47.47,
+      "bias": -90,
+      "confidence": 0.6,
+      "signal_quality": "NO TRADE",
+      "decision": "WAIT",
+      "entry": null,
+      "stop": null,
+      "tp1": null,
+      "tp2": null,
+      "rr": null,
+      "probability": 0.23,
+      "ev_r": null
+    },
+    "US02Y": {
+      "tier": "W",
+      "price": 4.775,
+      "bias": 49,
+      "confidence": 0.6,
+      "signal_quality": "N/A",
+      "decision": "Monitor",
+      "entry": null,
+      "stop": null,
+      "tp1": null,
+      "tp2": null,
+      "rr": null,
+      "probability": null,
+      "ev_r": null
+    }
+  },
+  "intermarket": {
+    "btc_vs_nasdaq": "Neutral",
+    "dxy_vs_gold_btc": "DXY Strong/Gold Weak",
+    "vix_signal": "High Volatility/Panic",
+    "watchlist_signal": "Bearish"
+  },
+  "catalysts": [],
+  "risks": [
+    "DXY strength",
+    "High VVIX",
+    "Extreme Fear"
+  ],
+  "best_setup": {
+    "asset": null,
+    "direction": null,
+    "entry": null,
+    "sl": null,
+    "tp1": null,
+    "tp2": null,
+    "rr": null,
+    "probability": null,
+    "confidence": null,
+    "quality": null,
+    "ev_r": null
+  },
+  "no_trade_conditions": [
+    "High volatility",
+    "Low hit rate",
+    "Conflict detector high"
+  ],
+  "_schema": "rich",
+  "_decision_engine": {
+    "corrections": [
+      "report.model 'v1.5' → 'gemini:gemini-3.1-flash-lite' (modelo real)",
+      "DXY: decision 'Monitor' → 'None'",
+      "VIX: decision 'Monitor' → 'None'",
+      "US10Y: decision 'Monitor' → 'None'",
+      "US02Y: decision 'Monitor' → 'None'",
+      "aggregate: bias -39.4→-39.4, decision None→WAIT"
+    ],
+    "applied_at": "2026-11-17T07:31:30.335097+00:00"
+  }
+}
