@@ -1,38 +1,38 @@
 {
   "schema_version": 2,
-  "generated_at": "2026-11-26T14:00:54Z",
+  "generated_at": "2026-11-26T23:31:04Z",
   "aggregated": {
     "overall": {
       "hit": 261,
-      "miss": 620,
-      "skip": 2477,
+      "miss": 621,
+      "skip": 2488,
       "calibration": {
         "probability": 42.4,
         "actual": 29.6,
-        "brier": 0.2526,
-        "n": 89
+        "brier": 0.252,
+        "n": 90
       },
       "hit_rate": 29.6
     },
     "bias": {
       "hit": 1037,
-      "miss": 2095,
-      "skip": 226,
-      "hit_rate": 33.1
+      "miss": 2105,
+      "skip": 228,
+      "hit_rate": 33.0
     },
     "by_asset": {
       "BTC": {
         "hit": 34,
-        "miss": 90,
+        "miss": 91,
         "skip": 255,
-        "hit_rate": 27.4,
+        "hit_rate": 27.2,
         "execution": {
           "tp1": 1,
           "tp2": 0,
           "stop": 20,
           "no_fill": 50,
           "pending": 0,
-          "none": 42,
+          "none": 43,
           "r_mean": -1.133,
           "n_r": 21
         }
@@ -40,7 +40,7 @@
       "ETH": {
         "hit": 1,
         "miss": 15,
-        "skip": 84,
+        "skip": 85,
         "hit_rate": 6.2,
         "execution": {
           "tp1": 0,
@@ -56,7 +56,7 @@
       "GOLD": {
         "hit": 31,
         "miss": 89,
-        "skip": 259,
+        "skip": 260,
         "hit_rate": 25.8,
         "execution": {
           "tp1": 2,
@@ -72,7 +72,7 @@
       "NASDAQ": {
         "hit": 62,
         "miss": 129,
-        "skip": 188,
+        "skip": 189,
         "hit_rate": 32.5,
         "execution": {
           "tp1": 1,
@@ -88,7 +88,7 @@
       "OIL": {
         "hit": 77,
         "miss": 125,
-        "skip": 176,
+        "skip": 177,
         "hit_rate": 38.1,
         "execution": {
           "tp1": 2,
@@ -104,7 +104,7 @@
       "SOL": {
         "hit": 2,
         "miss": 6,
-        "skip": 91,
+        "skip": 92,
         "hit_rate": 25.0,
         "execution": {
           "tp1": 0,
@@ -120,7 +120,7 @@
       "SP500": {
         "hit": 45,
         "miss": 139,
-        "skip": 195,
+        "skip": 196,
         "hit_rate": 24.5,
         "execution": {
           "tp1": 0,
@@ -136,7 +136,7 @@
       "SILVER": {
         "hit": 6,
         "miss": 11,
-        "skip": 79,
+        "skip": 80,
         "hit_rate": 35.3,
         "execution": {
           "tp1": 1,
@@ -152,7 +152,7 @@
       "DXY": {
         "hit": 1,
         "miss": 7,
-        "skip": 354,
+        "skip": 355,
         "hit_rate": 12.5,
         "execution": {
           "tp1": 0,
@@ -168,19 +168,19 @@
       "US10Y": {
         "hit": 0,
         "miss": 3,
-        "skip": 359,
+        "skip": 360,
         "hit_rate": 0.0
       },
       "VIX": {
         "hit": 2,
         "miss": 5,
-        "skip": 355,
+        "skip": 356,
         "hit_rate": 28.6
       },
       "US02Y": {
         "hit": 0,
         "miss": 1,
-        "skip": 82,
+        "skip": 83,
         "hit_rate": 0.0
       }
     },
@@ -205,9 +205,9 @@
       },
       "v1.5": {
         "hit": 31,
-        "miss": 56,
-        "skip": 765,
-        "hit_rate": 35.6
+        "miss": 57,
+        "skip": 776,
+        "hit_rate": 35.2
       }
     },
     "by_session": {
@@ -219,9 +219,9 @@
       },
       "ny": {
         "hit": 8,
-        "miss": 9,
-        "skip": 223,
-        "hit_rate": 47.1
+        "miss": 10,
+        "skip": 234,
+        "hit_rate": 44.4
       },
       "tokio": {
         "hit": 10,
@@ -251,20 +251,20 @@
       },
       "SHORT": {
         "hit": 76,
-        "miss": 172,
+        "miss": 173,
         "skip": 3,
-        "hit_rate": 30.6
+        "hit_rate": 30.5
       },
       "UNKNOWN": {
         "hit": 8,
         "miss": 7,
-        "skip": 629,
+        "skip": 634,
         "hit_rate": 53.3
       },
       "NO TRADE": {
         "hit": 0,
         "miss": 0,
-        "skip": 140,
+        "skip": 146,
         "hit_rate": null
       }
     },
@@ -272,7 +272,7 @@
       "n/d": {
         "hit": 224,
         "miss": 568,
-        "skip": 2420,
+        "skip": 2431,
         "hit_rate": 28.3
       },
       "50-60%": {
@@ -289,9 +289,9 @@
       },
       "<50%": {
         "hit": 29,
-        "miss": 43,
+        "miss": 44,
         "skip": 57,
-        "hit_rate": 40.3
+        "hit_rate": 39.7
       }
     },
     "by_confidence": {
@@ -304,20 +304,20 @@
       "50-60": {
         "hit": 0,
         "miss": 2,
-        "skip": 278,
+        "skip": 280,
         "hit_rate": 0.0
       },
       ">=70": {
         "hit": 28,
         "miss": 50,
-        "skip": 197,
+        "skip": 201,
         "hit_rate": 35.9
       },
       "60-70": {
         "hit": 12,
-        "miss": 13,
-        "skip": 261,
-        "hit_rate": 48.0
+        "miss": 14,
+        "skip": 266,
+        "hit_rate": 46.2
       },
       "<50": {
         "hit": 0,
@@ -336,13 +336,13 @@
       "NO TRADE": {
         "hit": 0,
         "miss": 0,
-        "skip": 428,
+        "skip": 430,
         "hit_rate": null
       },
       "A": {
         "hit": 19,
         "miss": 26,
-        "skip": 71,
+        "skip": 73,
         "hit_rate": 42.2
       },
       "A-": {
@@ -359,14 +359,14 @@
       },
       "B": {
         "hit": 19,
-        "miss": 34,
-        "skip": 175,
-        "hit_rate": 35.8
+        "miss": 35,
+        "skip": 178,
+        "hit_rate": 35.2
       },
       "C": {
         "hit": 2,
         "miss": 1,
-        "skip": 146,
+        "skip": 150,
         "hit_rate": 66.7
       },
       "B+": {
@@ -404,14 +404,14 @@
       "n/d": {
         "hit": 232,
         "miss": 579,
-        "skip": 2474,
+        "skip": 2485,
         "hit_rate": 28.6
       },
       "0.8-1.5 ATR": {
         "hit": 5,
-        "miss": 16,
+        "miss": 17,
         "skip": 2,
-        "hit_rate": 23.8
+        "hit_rate": 22.7
       },
       "1.5-2.5 ATR": {
         "hit": 1,
@@ -436,20 +436,20 @@
       "neutral (-25..25)": {
         "hit": 3,
         "miss": 3,
-        "skip": 317,
+        "skip": 319,
         "hit_rate": 50.0
       },
       "alcista (>25)": {
         "hit": 11,
         "miss": 29,
-        "skip": 195,
+        "skip": 198,
         "hit_rate": 27.5
       },
       "bajista (<-25)": {
         "hit": 18,
-        "miss": 25,
-        "skip": 254,
-        "hit_rate": 41.9
+        "miss": 26,
+        "skip": 260,
+        "hit_rate": 40.9
       }
     },
     "execution": {
@@ -458,7 +458,7 @@
       "stop": 93,
       "no_fill": 404,
       "pending": 0,
-      "none": 204,
+      "none": 205,
       "r_sum": -101.09,
       "r_mean": -1.011,
       "n_r": 100
