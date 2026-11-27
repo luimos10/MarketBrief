@@ -1,0 +1,253 @@
+{
+  "report": {
+    "date": "2026-11-27",
+    "market_bias": "Neutral-Bearish",
+    "market_leader": "DXY",
+    "model": "gemini:gemini-3.5-flash",
+    "prompt_version": "v1.5"
+  },
+  "regime": {
+    "primary": "Risk-Off",
+    "secondary": "Volatility Spike / Backwardation",
+    "confidence": 78
+  },
+  "aggregate": {
+    "main_assets_average_bias": -28.2,
+    "decision": "WAIT",
+    "_source": "decision_engine"
+  },
+  "assets": {
+    "BTC": {
+      "tier": "P",
+      "price": 61840.24,
+      "bias": -24,
+      "confidence": 58,
+      "signal_quality": "NO TRADE",
+      "decision": "SIT_ON_HANDS",
+      "entry": null,
+      "stop": null,
+      "tp1": null,
+      "tp2": null,
+      "rr": null,
+      "probability": null,
+      "ev_r": null
+    },
+    "SP500": {
+      "tier": "P",
+      "price": 7316.5,
+      "bias": -15,
+      "confidence": 55,
+      "signal_quality": "NO TRADE",
+      "decision": "SIT_ON_HANDS",
+      "entry": null,
+      "stop": null,
+      "tp1": null,
+      "tp2": null,
+      "rr": null,
+      "probability": null,
+      "ev_r": null
+    },
+    "NASDAQ": {
+      "tier": "P",
+      "price": 26743.25,
+      "bias": -21,
+      "confidence": 56,
+      "signal_quality": "NO TRADE",
+      "decision": "SIT_ON_HANDS",
+      "entry": null,
+      "stop": null,
+      "tp1": null,
+      "tp2": null,
+      "rr": null,
+      "probability": null,
+      "ev_r": null
+    },
+    "GOLD": {
+      "tier": "P",
+      "price": 3685.2,
+      "bias": -68,
+      "confidence": 76,
+      "signal_quality": "B",
+      "decision": "SIT_ON_HANDS",
+      "entry": null,
+      "stop": null,
+      "tp1": null,
+      "tp2": null,
+      "rr": null,
+      "probability": null,
+      "ev_r": null
+    },
+    "OIL": {
+      "tier": "P",
+      "price": 86.15,
+      "bias": -13,
+      "confidence": 52,
+      "signal_quality": "NO TRADE",
+      "decision": "SIT_ON_HANDS",
+      "entry": null,
+      "stop": null,
+      "tp1": null,
+      "tp2": null,
+      "rr": null,
+      "probability": null,
+      "ev_r": null
+    },
+    "DXY": {
+      "tier": "M",
+      "price": 103.678,
+      "bias": 55,
+      "confidence": 75,
+      "signal_quality": "A",
+      "decision": "WATCH",
+      "entry": null,
+      "stop": null,
+      "tp1": null,
+      "tp2": null,
+      "rr": null,
+      "probability": null,
+      "ev_r": null
+    },
+    "VIX": {
+      "tier": "M",
+      "price": 26.8,
+      "bias": 66,
+      "confidence": 82,
+      "signal_quality": "A",
+      "decision": "WATCH",
+      "entry": null,
+      "stop": null,
+      "tp1": null,
+      "tp2": null,
+      "rr": null,
+      "probability": null,
+      "ev_r": null
+    },
+    "US10Y": {
+      "tier": "M",
+      "price": 4.848,
+      "bias": -5,
+      "confidence": 50,
+      "signal_quality": "NO TRADE",
+      "decision": "SIT_ON_HANDS",
+      "entry": null,
+      "stop": null,
+      "tp1": null,
+      "tp2": null,
+      "rr": null,
+      "probability": null,
+      "ev_r": null
+    },
+    "ETH": {
+      "tier": "W",
+      "price": 1734.11,
+      "bias": -40,
+      "confidence": 68,
+      "signal_quality": "B",
+      "decision": "SIT_ON_HANDS",
+      "entry": null,
+      "stop": null,
+      "tp1": null,
+      "tp2": null,
+      "rr": null,
+      "probability": null,
+      "ev_r": null
+    },
+    "SOL": {
+      "tier": "W",
+      "price": 72.96,
+      "bias": -39,
+      "confidence": 65,
+      "signal_quality": "B",
+      "decision": "SIT_ON_HANDS",
+      "entry": null,
+      "stop": null,
+      "tp1": null,
+      "tp2": null,
+      "rr": null,
+      "probability": null,
+      "ev_r": null
+    },
+    "SILVER": {
+      "tier": "W",
+      "price": 44.485,
+      "bias": -72,
+      "confidence": 78,
+      "signal_quality": "B",
+      "decision": "SIT_ON_HANDS",
+      "entry": null,
+      "stop": null,
+      "tp1": null,
+      "tp2": null,
+      "rr": null,
+      "probability": null,
+      "ev_r": null
+    },
+    "US02Y": {
+      "tier": "W",
+      "price": 4.775,
+      "bias": 58,
+      "confidence": 74,
+      "signal_quality": "A",
+      "decision": "WATCH",
+      "entry": null,
+      "stop": null,
+      "tp1": null,
+      "tp2": null,
+      "rr": null,
+      "probability": null,
+      "ev_r": null
+    }
+  },
+  "intermarket": {
+    "btc_vs_nasdaq": "Correlación moderada positiva (0.43). Ambas estructuras muestran falta de volumen comprador real.",
+    "dxy_vs_gold_btc": "DXY en +55 ejerce presión inversa sostenida sobre Commodities y Crypto.",
+    "vix_signal": "VIX a 26.8 con VIX9D/VIX a 1.105 confirma stress estructural. Estricto control de riesgo.",
+    "watchlist_signal": "Rotación defensiva clara (XLKs cayendo, XLU liderando)."
+  },
+  "catalysts": [
+    "Rebalanceos de fin de semana en derivados crypto",
+    "Resolución de backwardation en curva VIX9D/VIX"
+  ],
+  "risks": [
+    "Short Squeeze en BTC por encima de 62,027 USDT debido a funding elevado negativo",
+    "Continuación de sell-off en XLK arrastrando al S&P 500 bajo los 7,300 puntos"
+  ],
+  "best_setup": {
+    "asset": "NONE",
+    "direction": "NONE",
+    "entry": null,
+    "sl": null,
+    "tp1": null,
+    "tp2": null,
+    "rr": null,
+    "probability": null,
+    "confidence": null,
+    "quality": "NO TRADE",
+    "ev_r": null
+  },
+  "no_trade_conditions": [
+    "Falta de confluencia con Confidence >65% en activos principales",
+    "VIX elevadamente alto (>25) expandiendo el riesgo de mecha/slippage",
+    "Divergencia de volumen en rebotes de corto plazo"
+  ],
+  "_schema": "rich",
+  "_decision_engine": {
+    "corrections": [
+      "report.model 'Quant Engine v1.5' → 'gemini:gemini-3.5-flash' (modelo real)",
+      "BTC: decision 'SIT_ON_HANDS' → 'None'",
+      "SP500: decision 'SIT_ON_HANDS' → 'None'",
+      "NASDAQ: decision 'SIT_ON_HANDS' → 'None'",
+      "GOLD: decision 'SIT_ON_HANDS' → 'None'",
+      "OIL: decision 'SIT_ON_HANDS' → 'None'",
+      "DXY: decision 'WATCH' → 'None'",
+      "VIX: decision 'WATCH' → 'None'",
+      "US10Y: decision 'SIT_ON_HANDS' → 'None'",
+      "ETH: decision 'SIT_ON_HANDS' → 'None'",
+      "SOL: decision 'SIT_ON_HANDS' → 'None'",
+      "SILVER: decision 'SIT_ON_HANDS' → 'None'",
+      "US02Y: decision 'WATCH' → 'None'",
+      "aggregate: bias -28.0→-28.2, decision NO TRADE→WAIT"
+    ],
+    "applied_at": "2026-11-27T07:31:52.705861+00:00"
+  }
+}
